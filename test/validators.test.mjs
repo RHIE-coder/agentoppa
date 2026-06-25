@@ -32,6 +32,12 @@ const CASES = [
     red: ".agentoppa/fixtures/intent-interview/red/.harness/intent.md",
     green: ".agentoppa/fixtures/intent-interview/green/.harness/intent.md",
   },
+  {
+    name: "check-doc-refs — 커밋 문서의 dangling 상대링크 점검",
+    validator: "plugins/agentoppa/bin/check-doc-refs.mjs",
+    red: ".agentoppa/fixtures/doc-refs/red",
+    green: ".agentoppa/fixtures/doc-refs/green",
+  },
 ];
 
 function run(validator, target) {
@@ -57,6 +63,21 @@ for (const c of CASES) {
       r.status,
       0,
       `green fixture가 실패함(exit ${r.status}) — validator 오작동(멀쩡한 걸 막음)\n${r.stdout}`,
+    );
+  });
+}
+
+// --- 자기 점검: 우리 자신의 커밋 문서는 dangling 상대링크가 0이어야 (검사기가 실제로 repo를 지키게) ---
+//     fixtures/ 는 의도적 반칙 입력이라 제외 — 그건 위 red/green CASE로 따로 검증한다.
+//     ROADMAP을 포함하는 이유: 임시 참조 파일을 지우면 그 포인터도 0이어야 함을 자동 강제("삭제 완료=참조 0").
+const SELF_CHECK = ["plugins", "README.md", "ROADMAP.md", "ARCHITECTURE.md", "AGENTS.md", "CLAUDE.md"];
+for (const tgt of SELF_CHECK) {
+  test(`check-doc-refs 자기점검 — ${tgt} 의 dangling 상대링크는 0`, () => {
+    const r = run("plugins/agentoppa/bin/check-doc-refs.mjs", tgt);
+    assert.equal(
+      r.status,
+      0,
+      `${tgt} 에 dangling 상대링크 있음 — 대상 파일을 만들거나 참조를 고칠 것(참조 0까지)\n${r.stdout}`,
     );
   });
 }
