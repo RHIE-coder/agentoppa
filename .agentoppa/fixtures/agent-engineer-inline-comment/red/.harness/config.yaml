@@ -1,0 +1,5 @@
+harness: inline-broken   # 인라인 주석은 정상 파싱돼야 하고…
+feature: inline
+sync:    medium
+phases:  # …그래서 이 블록은 읽히지만, 내용이 진짜로 틀렸다 (dangling)
+  - review

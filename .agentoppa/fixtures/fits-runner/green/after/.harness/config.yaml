@@ -1,0 +1,5 @@
+# 하네스가 추가한 파일 — 테스트 러너와 무관한 추가는 fits 위반이 아니다.
+harness: board-flow
+feature: comments
+values:
+  test_command: "node --test"

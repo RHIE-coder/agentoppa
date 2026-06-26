@@ -1,0 +1,19 @@
+# myflow — 손수 만든 비-AgentOppa 워크플로 (외래 하네스).
+# 포맷이 AgentOppa(.harness: config.yaml + core/ + project/phases/*.md)와 일부러 다르다:
+# 단일 파일 · 평평한 stages 리스트 · 자체 키. 다른 도구가 만든 것처럼 보이게 함.
+name: board-service-flow
+version: 1
+runner: myflow@0.3
+stages:
+  - id: plan
+    desc: 작업 계획 적기
+    run: echo "plan"
+  - id: build
+    desc: 코드 작성
+    run: npm test
+  - id: ship
+    desc: 배포
+    run: echo "ship"
+defaults:
+  shell: bash
+  stop_on_error: true

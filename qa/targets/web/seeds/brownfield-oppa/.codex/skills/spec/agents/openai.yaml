@@ -1,0 +1,7 @@
+interface:
+  display_name: "spec"
+  short_description: "기존 board-service에 더할 기능 요청을 검증가능한 명세로 굳힐 때."
+  brand_color: "#5b4fd6"
+  default_prompt: "spec 단계를 수행해줘."
+policy:
+  allow_implicit_invocation: true

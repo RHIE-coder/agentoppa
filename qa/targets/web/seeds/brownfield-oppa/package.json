@@ -1,0 +1,10 @@
+{
+  "name": "board-service",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "로그인/회원가입/프로필/게시판 — QA 브라운필드 시드 (이미 개발된 프로젝트, 하네스 없음)",
+  "scripts": {
+    "start": "node src/start.mjs",
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,10 @@
+harness:  safe-feature
+feature:  board-service       # 역할→경로의 {feature} (git 브랜치 추론 대신 고정)
+sync:     medium             # loose | medium | strict (전역 기본)
+routing:  balanced           # budget | balanced | premium
+phases:
+  - spec
+  - tdd
+  - {name: review, sync: strict}   # 인증/권한 회귀가 치명적 → 이 단계만 게이트로 차단
+values:
+  test_command: "node --test"      # 기존 러너 재사용 (2번째 프레임워크 금지)

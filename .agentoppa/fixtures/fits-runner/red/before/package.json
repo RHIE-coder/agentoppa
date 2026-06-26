@@ -1,0 +1,8 @@
+{
+  "name": "board-service",
+  "type": "module",
+  "scripts": {
+    "start": "node src/start.mjs",
+    "test": "node --test"
+  }
+}

@@ -48,3 +48,20 @@
 - **일반화**: 이 repo(솔로·dogfood)는 커밋용 브랜치를 따로 안 만들고 현재 브랜치(보통 main)에 직접 커밋(명시 요청 없으면). = 하네스 분기-우선 기본의 repo-로컬 오버라이드.
 - **수단/범위**: 내부(이 repo만) → `AGENTS.md` 한 줄. **배포 아님** — 브랜치-우선은 일반 유저에겐 좋은 기본이라 끄면 안 됨(그래서 plugins/always-on이 아니라 AGENTS.md).
 - **산출물**: `AGENTS.md` "git: 커밋은 현재 브랜치에 직접".
+
+## 2026-06-26 · 첫 라이브 e2e가 드러낸 4건 (①은 이번에 가드화)
+
+- **무슨 일**: AgentOppa로 만든 하네스를 처음으로 실제 end-to-end 돌려보니 실버그·gap 4건이 한꺼번에 나왔다. ① agent-engineer/scripts/validate.mjs 의 config.yaml 파서가 `phases:  # 순서`·`values:  # ...`처럼 블록키 줄에 **인라인 주석**이 붙으면 `/^phases:\s*$/`·`/^values:\s*$/`가 안 맞아 **블록 전체를 조용히 무시** → 멀쩡한 config인데 거짓 "phases 비어 있음" 오류로 실패(라이브가 정확히 이걸로 죽음). ② phase 카드(`project/phases/*.md`)를 실제 도구별 스킬로 굳히는 **phase→스킬 컴파일러가 부재** — 카드는 있는데 Claude/Codex가 실행할 스킬로 떨궈주는 단계가 없음. ③ 생성된 하네스 안에 `.harness/core/validate.mjs` **단일소스가 부재** — 검증기가 정본으로 따라붙지 않아 하네스가 자기 계약을 못 지킴. ④ **Codex 측 실설치가 미검증** — 크로스툴 동일 품질 불변식인데 Codex 네이티브 경로로 실제 깔리는지 확인된 적 없음.
+- **왜 생겼나**: ① 라인 기반 파서를 "이 양식 전용"으로 좁게 짜며 인라인 주석 케이스를 안 넣음(YAML 주석은 흔한데). 게다가 실패 모드가 *조용함*(블록 무시 후 빈 phases로 진행) → 사용자에겐 엉뚱한 "phases 비었음"만 보여 원인 추적이 어려운 = 맹점성 실버그. ②③④ 는 컴포넌트를 *단위로*만 검증하고 한 번도 통째로 흘려보지 않아(실 e2e 부재) 컴파일·정본복사·타툴설치라는 *연결부*가 비어 있던 것 — 단위 green ≠ e2e green.
+- **일반화**: 이름(phases/values)·인스턴스를 떼고 → "라인 기반 설정 파서의 블록키 인식은 trailing `# ...` 주석에 견고해야 한다(주석 때문에 블록을 통째로 떨구지 말 것)." 더 큰 교훈: *조용한 무시*는 금물 — 인식 못 한 입력은 무시 말고 드러내라. (단위가 다 green이어도 연결부는 라이브로만 드러난다 = ②③④ 의 근원, 그쪽은 각자 작업.)
+- **수단 판정(순차)**: ① 파서 인식 규칙 = **검사기로 기계화 가능**(red/green fixture로 입력→판정이 결정적) → validator 수정 + fixture + CASE 채택. 훅·리뷰어·Gate·always-on = 부적합(코드 로직 버그라 산문 규칙으로 못 막음). ②③④ = 이 작업의 검사기 대상 아님(②③ = build-skills.mjs 컴파일러 빌드 = 다른 에이전트, ④ = 실설치 검증 = 별도). → **인스턴스(이번 라이브 사건)는 이 로그에만, 산출물(가드)은 ①만 범용으로.**
+- **범위**: 배포 — agent-engineer validator는 *생성되는 모든 하네스*의 config를 검사하므로(엔진 컴포넌트) 인라인 주석 회귀 가드도 같이 배포된다. 임의 유저의 config가 인라인 주석을 달 수 있으니 범용.
+- **산출물**: ① `plugins/agentoppa/skills/agent-engineer/scripts/validate.mjs` — `/^phases:\s*(#.*)?$/`·`/^values:\s*(#.*)?$/`로 블록키 줄의 trailing 주석 허용(다른 동작 보존). ② `.agentoppa/fixtures/agent-engineer-inline-comment/{green,red}/`(green=인라인 주석 달린 유효 config+phases, red=주석은 정상 파싱되지만 dangling consumes로 진짜 실패) + `test/validators.test.mjs` CASE 1줄. ②③④ 의 산출물은 각자 작업(build-skills.mjs 컴파일러·정본복사·Codex 실설치)에서.
+- **기대**: 인라인 주석 달린 config가 거짓 실패하는 일이 다시 안 남(red/green이 회귀를 기계로 받침). ②③④ 는 각자 작업에서 메워지며, 그 후 라이브 e2e가 통째로 green이면 "단위 green ≠ e2e green" gap이 닫힌다.
+
+## 2026-06-26 · ②③④ 후속: 컴파일러·정본복사 완료 · Codex 패키징 불일치 2건 발견
+
+- **무슨 일**: 위 ②③④ 를 메우고 ④ 를 실제 codex 0.140 으로 검증. ② phase→스킬 컴파일러 `plugins/agentoppa/bin/build-skills.mjs` 빌드(slot 치환·Codex 미러·agents=build-agents 재사용·gate 훅·멱등 byte-identical). ③ build-skills 가 `.harness/core/validate.mjs` 를 정본(`agent-engineer/scripts/validate.mjs`)에서 복사 emit → 단일소스 확보(라이브의 '즉흥 복사' 제거). ④ 생성된 Codex 패키징을 실 `codex plugin marketplace add`/`list` 로 걸어보니 **두 군데가 codex 0.140 스키마와 불일치**해 거부: (a) `marketplace.json` 스키마 — `owner`→`name`+`interface.displayName`, `policy.installation: "explicit"`→`"AVAILABLE"`, `authentication: "none"`→생략(ON_INSTALL/ON_USE만 허용). (b) 레이아웃 — codex 는 마켓 루트의 `plugins/<name>/` 서브디렉터리를 기대하는데 생성물은 플러그인을 프로젝트 루트(`source.path:"."`)에 둠 → "No plugins found". 둘 다 고치니 `safe-feature@agentoppa2` **발견 성공**.
+- **결론**: 생성된 *스킬·에이전트·훅 자체는 정상*(codex 가 발견함). 문제는 **ccc-plugin 이 만드는 Codex 패키징(marketplace 스키마 + 레이아웃)이 codex 0.140 기준 outdated** — "크로스툴 동일 품질"의 Codex 절반이 미증명을 넘어 *실제로 깨져 있었음*(이제 드러남·정확 규격 확정).
+- **수단/범위(후속 가드 — 미착수)**: ccc-plugin 의 `template.md` + `scripts/validate.mjs` 를 codex 0.140 실스키마로 갱신(manifest 스키마는 결정적 → 검사기로 기계화). + **컴파일 레이아웃은 설계 결정(유저 몫)**: 유저 하네스를 '프로젝트 루트 .codex' 모델로 둘지, 'marketplace plugins/<name>/' 모델로 바꿀지. 이번엔 oppa 시드 `marketplace.json` 만 실스키마로 교정(발견까지 확인), 레이아웃 재구성은 보류.
+- **기대**: ②③ 으로 첫 라이브의 치명 gap(컴파일러 부재)·즉흥(core 복사)이 결정적으로 닫힘. ④ 로 Codex 패키징 정확 규격이 확정 → ccc-plugin 갱신이 다음 가드.

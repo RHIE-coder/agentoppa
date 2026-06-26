@@ -1,0 +1,10 @@
+{
+  "name": "greenfield-web",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "그린필드 web 시드 — 거의 빈 진짜 프로젝트 (QA case1 입력)",
+  "scripts": {
+    "start": "node src/start.mjs",
+    "test": "node --test"
+  }
+}

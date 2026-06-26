@@ -1,0 +1,10 @@
+harness:  inline-flow   # 하네스 이름 (인라인 주석)
+feature:  inline
+sync:     medium         # loose|medium|strict
+routing:  balanced
+phases:  # 실행 순서 — 이 인라인 주석이 블록 파싱을 깨뜨리던 버그
+  - spec
+  - tdd
+  - {name: review, sync: strict}
+values:  # config 값 (이쪽 인라인 주석도 같은 버그)
+  test_command: "npm test"

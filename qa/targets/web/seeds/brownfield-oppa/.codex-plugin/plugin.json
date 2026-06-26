@@ -1,0 +1,8 @@
+{
+  "name": "safe-feature",
+  "version": "0.1.0",
+  "description": "board-service에 기능을 안전히 추가하는 하네스 (spec→tdd→review). 기존 node --test 재사용, 비손상.",
+  "author": "AgentOppa",
+  "skills": ["./.codex/skills/spec", "./.codex/skills/tdd", "./.codex/skills/review"],
+  "hooks": "./.codex/hooks/config.toml"
+}

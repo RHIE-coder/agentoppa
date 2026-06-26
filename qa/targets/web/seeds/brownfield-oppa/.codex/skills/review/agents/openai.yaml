@@ -1,0 +1,7 @@
+interface:
+  display_name: "review"
+  short_description: "tdd가 끝난 변경을 spec·보안·기존 컨벤션 기준으로 리뷰할 때."
+  brand_color: "#5b4fd6"
+  default_prompt: "review 단계를 수행해줘."
+policy:
+  allow_implicit_invocation: true

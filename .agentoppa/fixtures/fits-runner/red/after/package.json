@@ -1,0 +1,11 @@
+{
+  "name": "board-service",
+  "type": "module",
+  "scripts": {
+    "start": "node src/start.mjs",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

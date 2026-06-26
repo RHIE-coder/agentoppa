@@ -1,0 +1,9 @@
+# generated for Codex by AgentOppa build-skills — same script as .claude/hooks/gate-review.mjs
+# strict 게이트의 비손상 가드. 경로변수는 $PLUGIN_ROOT(스크립트가 CWD로도 흡수).
+[[hooks.PreToolUse]]
+matcher = "^(Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'node "$PLUGIN_ROOT/.codex/hooks/gate-review.mjs"'
+timeout = 30

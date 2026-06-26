@@ -1,0 +1,12 @@
+{
+  "name": "agentoppa",
+  "interface": { "displayName": "AgentOppa" },
+  "plugins": [
+    {
+      "name": "safe-feature",
+      "source": { "source": "local", "path": "." },
+      "policy": { "installation": "AVAILABLE" },
+      "category": "Development"
+    }
+  ]
+}

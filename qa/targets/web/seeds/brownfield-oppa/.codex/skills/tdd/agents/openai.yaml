@@ -1,0 +1,7 @@
+interface:
+  display_name: "tdd"
+  short_description: "spec이 있고 실패테스트→구현으로 기능을 안전히 추가할 때."
+  brand_color: "#5b4fd6"
+  default_prompt: "tdd 단계를 수행해줘."
+policy:
+  allow_implicit_invocation: true
