@@ -50,16 +50,18 @@ function allCases() {
 const findCase = (id) => allCases().find((k) => k.id === id) ?? die(`알 수 없는 케이스: ${id} (node qa/run.mjs list)`);
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
-const HARNESS = [".harness", ".claude", ".codex"];
+// 통일 플러그인 모델: AgentOppa 가 추가하는 경로 = SOURCE(.harness) + 컴파일 플러그인(plugins/) + 루트 마켓(.claude-plugin·.agents) (+레거시 .codex-plugin).
+const HARNESS = [".harness", "plugins", ".claude-plugin", ".codex-plugin", ".agents"];
 const isHarness = (p) => HARNESS.some((h) => p === h || p.startsWith(h + "/"));
 
 // --- 판정들 (기계화된 것만; 나머지는 judge() 가 '?' 수동 표시) ---
 const JUDGES = {
   harness_present(work) {
-    const missing = HARNESS.filter((h) => !existsSync(join(work, h)));
+    const REQUIRED = [".harness", "plugins"]; // SOURCE + COMPILED 플러그인
+    const missing = REQUIRED.filter((h) => !existsSync(join(work, h)));
     return missing.length
-      ? { ok: false, msg: `하네스 산출 누락: ${missing.join(", ")} (agent generate 안 돎?)` }
-      : { ok: true, msg: "하네스 .harness/.claude/.codex 존재" };
+      ? { ok: false, msg: `하네스 산출 누락: ${missing.join(", ")} (compile 안 됨?)` }
+      : { ok: true, msg: "하네스 .harness/(SOURCE) + plugins/(COMPILED) 존재" };
   },
   project_unchanged(work) {
     // seed 원본(tracked) 파일이 수정/삭제되지 않았는가 — 하네스 경로 추가만 허용
@@ -71,10 +73,10 @@ const JUDGES = {
   },
   compiled_idempotent(work) {
     // 호출 전제: 직전 generate 결과를 커밋해 두고 → generate 재실행 → 이 판정.
-    const d = git(work, "diff", "--name-only", "--", ".claude", ".codex").stdout.trim();
+    const d = git(work, "diff", "--name-only", "--", "plugins", ".claude-plugin", ".agents").stdout.trim();
     return d
       ? { ok: false, msg: `재생성이 COMPILED 를 바꿈(멱등 실패):\n      ${d.split("\n").join("\n      ")}` }
-      : { ok: true, msg: "재생성 멱등 — .claude/.codex diff 없음" };
+      : { ok: true, msg: "재생성 멱등 — plugins/·루트 마켓 diff 없음" };
   },
   acceptance(work, kase) {
     if (!kase.acceptance) return { ok: false, msg: "case.md 에 acceptance 명령 미정의" };

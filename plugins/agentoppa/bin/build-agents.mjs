@@ -57,7 +57,8 @@ for (const file of files) {
   if (!/^[a-z0-9-]+$/.test(name)) { bad(`name '${name}' 형식 오류 — 건너뜀`); continue; }
   if (!body) { bad("본문(시스템 프롬프트) 비어 있음 → developer_instructions 필수 — 건너뜀"); continue; }
 
-  const out = [`# generated from ${file} by AgentOppa ccc-agents — edit the .md source, regenerate`];
+  // basename 만 — 절대경로를 박으면 .harness 저작 위치≠컴파일 위치에서 스퓨리어스 diff(멱등·이식성 깨짐). (라이브 e2e 발견.)
+  const out = [`# generated from ${basename(file)} by AgentOppa ccc-agents — edit the .md source, regenerate`];
   out.push(`name = ${basic(name)}`);
   if (fm.description) out.push(`description = ${basic(fm.description)}`);
   else warn("description 없음 (Codex 권장 필수)");

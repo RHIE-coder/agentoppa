@@ -1,4 +1,4 @@
-# generated from /Users/rhiemh/Workspace/@_focus_@/AgentOppa/qa/targets/web/seeds/brownfield-oppa/plugins/safe-feature/agents/security-reviewer.md by AgentOppa ccc-agents — edit the .md source, regenerate
+# generated from security-reviewer.md by AgentOppa ccc-agents — edit the .md source, regenerate
 name = "security-reviewer"
 description = "인증·권한·토큰 경로(auth.mjs·bearer·userOf·login/signup)에 닿는 변경을 리뷰할 때 위임. 권한 검사 누락·인증 우회·토큰 노출을 잡아 요약 반환. review phase가 동적으로 스폰."
 sandbox_mode = "read-only"
