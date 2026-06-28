@@ -1,6 +1,6 @@
 # 크로스툴 플러그인 빈 골격 (복사용)
 
-규칙은 [`SKILL.md`](SKILL.md)와 [`references/`](references/)를 따른다. 핵심: **컴포넌트는 한 트리에 공유, 매니페스트·마켓만 도구별.** Claude는 자동발견, Codex는 포인터 필수.
+규칙은 [`SKILL.md`](SKILL.md)와 [`references/`](references/)를 따른다. 핵심: **컴포넌트는 한 트리에 공유, 매니페스트·마켓만 도구별.** Claude는 자동발견, Codex는 포인터(= 컴포넌트가 어디 있는지 직접 적은 경로) 필수.
 
 ## 플러그인 트리
 
@@ -11,7 +11,7 @@
 ├── skills/<name>/SKILL.md         # 공유 컴포넌트
 ├── hooks/hooks.json               # 공유
 ├── agents/<name>.md               # 공유 (Claude .md; Codex는 빌드된 .toml)
-└── .mcp.json                      # 공유 (MCP 서버)
+└── .mcp.json                      # 공유 (MCP 서버 = 외부 연결 표준)
 ```
 
 ## 1. `.claude-plugin/plugin.json` (메타 — 컴포넌트는 자동발견)

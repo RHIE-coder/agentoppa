@@ -32,7 +32,7 @@
 
 `Stop`·`command`는 **공통 10**이라 Codex에서도 그대로 발화한다. 하지만 **`${CLAUDE_PLUGIN_ROOT}`는 Claude 전용**이다. Codex에서 같은 훅을 굴리려면:
 
-- Codex 매니페스트/설정에선 env **`$PLUGIN_ROOT`**를 쓰거나,
+- Codex 매니페스트(= 어떤 컴포넌트가 있는지 적어 둔 구성 정보 파일)/설정에선 env(= 환경변수) **`$PLUGIN_ROOT`**를 쓰거나,
 - `test-guard.mjs`가 스스로 흡수: `const root = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? process.cwd()`.
 
 → 검증기를 돌리면 정확히 이 지점을 짚어준다:

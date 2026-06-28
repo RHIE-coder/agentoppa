@@ -10,7 +10,7 @@
 | `AGENTS.md` | **안 읽음** | 표준으로 읽음 |
 | `CLAUDE.md` | 읽음 | **안 읽음** (옵트인: `project_doc_fallback_filenames`) |
 | user/global | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` (+`AGENTS.override.md`) |
-| 병합 | concat, 상위 eager·하위 on-demand | concat root→cwd, 디렉토리당 1, cwd서 멈춤 |
+| 병합 | concat(= 이어붙임), 상위 eager(= 시작 때 미리)·하위 on-demand | concat root→cwd, 디렉토리당 1, cwd서 멈춤 |
 | import | `@path` (depth 4, 상주) | 없음 → 디렉토리 분할 |
 | 크기 | 200줄 권고(순응) | 32 KiB 하드캡(초과분 드롭) |
 | 동적 메모리 | auto-memory (머신로컬) | `[features] memories` (머신로컬) |

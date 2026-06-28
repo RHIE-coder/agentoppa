@@ -3,7 +3,7 @@
 새 하네스를 만들 때 아래를 복사해 채운다. 규칙은 `references/phases.md`(단계)·`references/recipe.md`(Config)·`references/contract.md`(연결).
 
 **어느 블록을 어디에 두나 (두 모드):**
-- **ⓐ 재사용 Core 짓기** — 단계 정의(빈 단계·구현 모듈 frontmatter의 *빈자리 선언*)는 Core 묶음 `.agentoppa/plugins/<core>/`에 둔다. *프로젝트 값을 안 박는다* — 능력은 일반명으로(`e2e-runner` ✓, `playwright` ✗).
+- **ⓐ 재사용 Core 짓기** — 단계 정의(빈 단계·구현 모듈 frontmatter(= 파일 맨 위 `---` 사이의 구조화된 설정 블록)의 *빈자리 선언*)는 Core 묶음 `.agentoppa/plugins/<core>/`에 둔다. *프로젝트 값을 안 박는다* — 능력은 일반명으로(`e2e-runner` ✓, `playwright` ✗).
 - **ⓑ 이 프로젝트에 바인딩** — `config.yaml`(`core:`+`bindings:`+`impl:`+`values:`)·구현 모듈·보조 에이전트는 `.harness/`에 둔다. 빈자리를 *이 프로젝트 구현*으로 채우는 곳.
 - **`core:` 생략 = 단독 하네스** — Core 없이 단계를 `.harness/project/phases/`가 직접 든다(그대로 유효).
 

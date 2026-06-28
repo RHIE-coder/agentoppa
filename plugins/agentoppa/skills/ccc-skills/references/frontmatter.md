@@ -13,7 +13,7 @@
 | `when_to_use` | 아니오 | 추가 트리거 문구. `description`에 이어붙고 1,536자에 포함 |
 | `argument-hint` | 아니오 | 자동완성 인자 힌트. 예: `[issue-number]`, `[filename] [format]` |
 | `arguments` | 아니오 | `$name` 치환용 명명 위치 인자. 공백 구분 문자열 또는 YAML 목록 |
-| `disable-model-invocation` | 아니오 | `true`면 자동 로드 차단(수동 `/name`만). 서브에이전트 preload도 막음. 기본 `false` |
+| `disable-model-invocation` | 아니오 | `true`면 자동 로드 차단(수동 `/name`만). 서브에이전트 preload(= 미리 끌어다 둠)도 막음. 기본 `false` |
 | `user-invocable` | 아니오 | `false`면 `/` 메뉴에서 숨김(Claude 자동발동은 가능). 순수 배경지식용. 기본 `true` |
 | `allowed-tools` | 아니오 | 활성 중 **프롬프트 없이** 쓸 도구(사전승인). *제한이 아님* — 다른 도구도 호출 가능. 공백/쉼표 문자열 또는 목록 |
 | `disallowed-tools` | 아니오 | 활성 중 풀에서 제거할 도구. 자율 스킬에서 특정 도구(예: `AskUserQuestion`) 차단용. 다음 메시지에 해제 |
@@ -22,7 +22,7 @@
 | `context` | 아니오 | `fork`면 forked 서브에이전트에서 실행(대화 기록 접근 불가) |
 | `agent` | 아니오 | `context: fork`일 때 쓸 서브에이전트 유형(`Explore`/`Plan`/`general-purpose`/커스텀). 생략 시 `general-purpose` |
 | `hooks` | 아니오 | 이 스킬 라이프사이클에 스코프된 hooks |
-| `paths` | 아니오 | glob 패턴. 매칭 파일을 다룰 때만 자동 로드. 쉼표/목록 |
+| `paths` | 아니오 | glob 패턴(= `*`·`**` 같은 와일드카드로 파일을 묶어 지정). 매칭 파일을 다룰 때만 자동 로드. 쉼표/목록 |
 | `shell` | 아니오 | `` !`command` `` 주입 셸. `bash`(기본) 또는 `powershell`(`CLAUDE_CODE_USE_POWERSHELL_TOOL=1` 필요) |
 
 ### 명령어 이름이 정해지는 곳 (`name`과 별개)
@@ -54,7 +54,7 @@ description: 이 스킬이 언제 발동하고 언제 발동하면 안 되는지
 ---
 ```
 
-- `name` + `description` **필수.** description은 "핵심 사용사례·트리거 단어를 front-load".
+- `name` + `description` **필수.** description은 "핵심 사용사례·트리거 단어를 front-load(= 맨 앞에 배치)".
 - 본문 규칙(간결·명령형·입출력 명시)은 Claude와 같다. 도구 메타·발동 정책은 frontmatter가 아니라 **`agents/openai.yaml`**에 둔다(아래).
 
 ## 3. Codex — `agents/openai.yaml`
@@ -86,7 +86,7 @@ dependencies:
 |---|---|
 | `interface` | 표시 이름·설명·아이콘·브랜드색·기본 프롬프트 (UI 외형) |
 | `policy.allow_implicit_invocation` | `true`=description 매칭 자동발동, `false`=명시 호출만 |
-| `dependencies.tools[]` | 필요한 MCP/외부 도구 선언 (`type`/`value`/`description`/`transport`/`url`) |
+| `dependencies.tools[]` | 필요한 MCP(= Model Context Protocol, 외부 도구·데이터를 에이전트에 붙이는 표준)/외부 도구 선언 (`type`/`value`/`description`/`transport`/`url`) |
 
 ## 4. 공통 권장값 (둘 다)
 

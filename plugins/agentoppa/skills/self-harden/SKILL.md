@@ -30,7 +30,7 @@ description: 에이전트가 방금 한 실수를 *다시는 못 하게* 영구 
 
 ## 산출물 vs 로그 — 반드시 분리
 - **산출물(가드)** = *범용·일반*만. 라이브러리처럼 — **특정 사건 이름(인스턴스)을 넣지 않는다.**
-- **로그** = `.agentoppa/hardening-log.md`(append-only). *무슨 일·왜 생겼나·어떻게 일반화·왜 이 수단·기대*. 인스턴스 이름은 **여기에만**.
+- **로그** = `.agentoppa/hardening-log.md`(append-only = 뒤에만 덧붙이고 기존 줄은 지우거나 고치지 않음). *무슨 일·왜 생겼나·어떻게 일반화·왜 이 수단·기대*. 인스턴스 이름은 **여기에만**.
 - 이유: 산출물이 깨끗해야 재사용되고, 경위는 다음 사람이 읽고 잇는다(project-committed).
 
 ## 확인 게이트 — 출력 화면 (쉬운 말)
@@ -53,7 +53,7 @@ description: 에이전트가 방금 한 실수를 *다시는 못 하게* 영구 
 | 범위 | 어디에 | 규칙 / 검사기 / 훅 |
 |---|---|---|
 | **배포** (유저에도 + 우리 dev엔 `--plugin-dir`로) | `plugins/agentoppa/` | `always-on.md` / `skills/*/scripts/validate.mjs` / `hooks/` |
-| **내부** (이 repo만, ship 안 됨) | repo 루트 | `AGENTS.md` / `test/` / (git 훅 등) |
+| **내부** (이 repo만, ship 안 됨 = 유저에게 배포 안 됨) | repo 루트 | `AGENTS.md` / `test/` / (git 훅 등) |
 
 (어느 쪽이든 **로그**는 `.agentoppa/hardening-log.md` — 우리 기록이라 ship 안 함.)
 

@@ -1,6 +1,6 @@
 # template.md — 빈 candidate 골격 (복사용)
 
-정정 하나를 `.agentoppa/candidates/<slug>.md`로 적어둔다. 박기 끝나면 **삭제(비우기)** — 영구 기록은 박힌 것과 git이 가진다. 박을 자리 정하기는 [references/classify.md](references/classify.md), 박는 법은 [references/route.md](references/route.md).
+정정 하나를 `.agentoppa/candidates/<slug>.md`(slug = 파일명에 쓸 짧은 영문 이름)로 적어둔다. 박기 끝나면 **삭제(비우기)** — 영구 기록은 박힌 것과 git이 가진다. 박을 자리 정하기는 [references/classify.md](references/classify.md), 박는 법은 [references/route.md](references/route.md).
 
 ````markdown
 # Candidate: <한 줄 — 무슨 실수였나>

@@ -7,8 +7,8 @@ description: Claude Code와 Codex의 메모리·지침 파일(AGENTS.md·CLAUDE.
 
 에이전트 메모리(상시 지침 + 프로젝트 지식) 만들기의 실패는 대개 셋이다 → 이 스킬은 그 셋을 막는다:
 
-1. **비대 — 다 욱여넣는다.** `AGENTS.md`/`CLAUDE.md`는 매 턴 상주한다. 길수록 무관한 토큰이 신호를 희석하고(context rot), 무엇보다 **지시 수가 늘면 순응률이 붕괴**한다(IFScale: 지시 500개에서 68%, 뒤 지시는 무시). 지식과 지시를 안 가리고 한 파일에 쌓으면 중요한 규칙까지 안 지켜진다.
-2. **머신로컬 — 그 노트북에만 산다.** user-scope(`~/.claude/CLAUDE.md`)·auto-memory(`~/.claude/projects/.../MEMORY.md`)·`~/.codex/memories/`에 프로젝트 지식을 두면 다른 머신·팀원·CI는 다른 context → 다른 품질. AgentOppa의 "동일한 품질 보장"과 정면충돌한다.
+1. **비대 — 다 욱여넣는다.** `AGENTS.md`/`CLAUDE.md`는 매 턴 상주한다. 길수록 무관한 토큰이 신호를 희석하고(context rot = 입력이 길어질수록 모델 성능이 떨어지는 현상), 무엇보다 **지시 수가 늘면 순응률이 붕괴**한다(IFScale = 지시 개수별 준수율 측정 연구: 지시 500개에서 68%, 뒤 지시는 무시). 지식과 지시를 안 가리고 한 파일에 쌓으면 중요한 규칙까지 안 지켜진다.
+2. **머신로컬 — 그 노트북에만 산다.** user-scope(= 그 사용자 계정 전역, 예 `~/.claude/CLAUDE.md`)·auto-memory(= 에이전트가 자동으로 쌓는 머신로컬 메모리, 예 `~/.claude/projects/.../MEMORY.md`)·`~/.codex/memories/`에 프로젝트 지식을 두면 다른 머신·팀원·CI(= 자동 빌드·테스트 서버)는 다른 context → 다른 품질. AgentOppa의 "동일한 품질 보장"과 정면충돌한다.
 3. **공유 파일 착각.** skills(`SKILL.md`)·hooks와 달리 **두 도구가 함께 읽는 메모리 파일이 없다**: Claude는 `CLAUDE.md`만, Codex는 `AGENTS.md`만 읽는다. 브리지 없이 한쪽만 쓰면 다른 쪽 메모리는 0이다.
 
 > 작성 메타(SKILL.md 형식·description 규칙·≤500줄·점진 로딩)는 [`ccc-skills`](../ccc-skills/SKILL.md)를 따른다. 여기선 메모리 도메인만 다룬다. ccc-memory 자체가 ccc-skills로 만든 스킬이다.
@@ -32,7 +32,7 @@ ccc-memory/
 ## 메모리를 통제하는 두 축
 
 1. **이식성(스코프).** 지속 메모리는 **project-committed만**. 머신로컬·user-scope 금지(순수 개인 취향은 예외). `git fetch`로 모든 머신·팀원이 동일 context. 머신로컬 auto-memory는 끈다. → [`references/layers.md`](references/layers.md)
-2. **길이(관련성).** 상시(always-on) 자리는 **모든 작업에 보편적으로 관련된 지시**만 얻는다. 나머지 지식은 on-demand로 라우팅한다. `@import`도 launch에 인라인되어 상주하니 비용 절감이 아니다. 긴 *지식*문서는 관련할 때만 로드돼 OK, 긴 *지시*파일은 순응을 무너뜨려 NG — 둘은 실패 방식이 다르다. → [`references/budget.md`](references/budget.md)
+2. **길이(관련성).** 상시(always-on) 자리는 **모든 작업에 보편적으로 관련된 지시**만 얻는다. 나머지 지식은 on-demand(= 필요할 때만 불러옴)로 라우팅한다. `@import`도 launch에 인라인되어 상주하니 비용 절감이 아니다. 긴 *지식*문서는 관련할 때만 로드돼 OK, 긴 *지시*파일은 순응을 무너뜨려 NG — 둘은 실패 방식이 다르다. → [`references/budget.md`](references/budget.md)
 
 ## When to use
 
@@ -67,8 +67,8 @@ ccc-memory/
 
 1. **감사.** 두 도구·모든 스코프 스캔(프로젝트 + 머신로컬). `validate.mjs`가 비대·드리프트·머신로컬 의존을 플래그.
 2. **분류.** 위 라우팅표로 줄 단위 분류.
-3. **재배치 — harvest 먼저, 삭제 나중.** auto-memory·user-scope의 진짜 학습을 `<memoryDir>/`에 **증류**(복사 아님)해 **`git commit`** → *그 다음에야* auto-memory OFF(`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, Codex `memories` 비활성)·user-scope에서 프로젝트 지식 제거(개인 취향만 잔류). **커밋이 안전장치** — 원본을 지워도 학습이 안 사라진다.
-4. **브리지.** `CLAUDE.md`를 `@AGENTS.md`로 단일화(중복 본문=드리프트 제거).
+3. **재배치 — harvest(= 흩어진 데서 쓸 것만 거둬옴) 먼저, 삭제 나중.** auto-memory·user-scope의 진짜 학습을 `<memoryDir>/`에 **증류**(복사 아님)해 **`git commit`** → *그 다음에야* auto-memory OFF(`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, Codex `memories` 비활성)·user-scope에서 프로젝트 지식 제거(개인 취향만 잔류). **커밋이 안전장치** — 원본을 지워도 학습이 안 사라진다.
+4. **브리지.** `CLAUDE.md`를 `@AGENTS.md`로 단일화(중복 본문=드리프트(= 같은 내용 두 곳이 따로 놀며 어긋남) 제거).
 5. **검증.** §새로 만드는 법 5단계.
 
 ## 한 벌로 양쪽 (이식성 요약)

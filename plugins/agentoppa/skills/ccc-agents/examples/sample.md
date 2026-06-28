@@ -28,8 +28,8 @@ Return findings grouped by priority — Critical / Warning / Suggestion — each
 
 - **단일 책임** — 리뷰만. 고치는 건 별도 에이전트 몫.
 - **description이 "언제"에 집중** — 언제 부르나(코드 변경 직후), 무엇을 반환(인용된 우선순위 지적), 경계(read-only). 절차 요약이 아니다.
-- **능력 최소화** — `tools: Read, Grep, Glob, Bash`(Edit/Write 없음) → Claude에서 실제로 쓰기가 차단되고, 생성 시 `sandbox_mode="read-only"`로 추론된다.
-- **요약 반환 + self-contained** — 외부 파일 안 읽고 `git diff`만으로 자립. 격리 컨텍스트에서도 동작.
+- **능력 최소화** — `tools: Read, Grep, Glob, Bash`(허용 도구 목록, Edit/Write 없음) → Claude에서 실제로 쓰기가 차단되고, 생성 시 `sandbox_mode="read-only"`로 추론된다.
+- **요약 반환 + self-contained**(= 외부 맥락 없이 그 지시문만으로 동작) — 외부 파일 안 읽고 `git diff`만으로 자립. 격리 컨텍스트에서도 동작.
 
 ## 2. 생성 — `.codex/agents/code-reviewer.toml`
 

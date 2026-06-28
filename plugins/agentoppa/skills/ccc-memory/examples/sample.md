@@ -74,6 +74,6 @@ auto-memory          : OFF (학습은 .agentoppa/payments.md·MEMORY.md로 harve
 - "결제 Stripe" 등 보편 사실 → AGENTS.md로 **증류**(복사 아님).
 - user-scope의 프로젝트 지식 → 프로젝트로 이전, "한국어로 답해"만 잔류.
 - auto-memory 학습 → harvest·커밋 후 OFF.
-- `CLAUDE.md` → `@AGENTS.md` 브리지 신설(드리프트 없음).
+- `CLAUDE.md` → `@AGENTS.md` 브리지 신설(드리프트(= 두 곳이 따로 놀며 어긋남) 없음).
 
 > 핵심: 600줄 → 42줄로 줄인 게 아니라, **상시 자리(매 턴 상주)에서 "보편 지시"만 남기고** 나머지는 *관련할 때만 로드되는* 커밋된 지식으로 옮긴 것. 총 정보량은 비슷하거나 늘었지만 상시 noise는 급감했다.

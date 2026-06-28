@@ -5,9 +5,9 @@
 ## 1. 공통 (한 벌만 작성 — 두 도구가 그대로 공유)
 
 - **`SKILL.md` 포맷**: `---` YAML frontmatter(`name`+`description`) + 마크다운 본문. 둘 다 [agentskills.io](https://agentskills.io) 개방표준.
-- **보조파일 구조**: `scripts/`(실행 코드) · `references/`(문서) · `assets/`(템플릿·리소스).
+- **보조파일 구조**: `scripts/`(실행 코드) · `references/`(문서) · `assets/`(템플릿·리소스 = 아이콘·서식 등 끼워 쓰는 자료).
 - **3층 점진 로딩**: 이름·설명 상주 → 본문은 선택 시 → 보조파일은 필요 시.
-- **`description` 철학**: "언제 쓰는가"를 트리거 단어와 함께 front-load. 워크플로 요약 금지.
+- **`description` 철학**: "언제 쓰는가"를 트리거 단어와 함께 front-load(= 맨 앞에 배치). 워크플로 요약 금지.
 - **본문 규율**: 간결·명령형·입출력 명시. 한 스킬은 한 가지 일.
 - **`name` 규칙**: 소문자+숫자+하이픈.
 
@@ -20,12 +20,12 @@
 | **개인 스킬** | `~/.claude/skills/<name>/SKILL.md` | `~/.agents/skills/<name>/SKILL.md` |
 | **프로젝트 스킬** | `.claude/skills/<name>/SKILL.md` | `.agents/skills/` (cwd → 상위 → 저장소 루트 순 스캔) |
 | **관리자/시스템** | enterprise 관리 설정 | `/etc/codex/skills` (admin) · Codex 번들 (system) |
-| **자동 발동** | `description`을 모델이 매칭 | `description` 매칭(implicit) — `policy.allow_implicit_invocation` |
+| **자동 발동** | `description`을 모델이 매칭 | `description` 매칭(implicit = 사용자가 명시 호출 안 해도 모델이 알아서) — `policy.allow_implicit_invocation` |
 | **명시 호출** | `/name` · plugin은 `/plugin:name` | `$skill` 멘션 |
 | **켜기/끄기** | `skillOverrides`(`.claude/settings.local.json`) · `/permissions`의 `Skill(...)` | `~/.codex/config.toml`의 `[[skills.config]]` `enabled = false` |
 | **도구별 메타** | frontmatter(`allowed-tools`/`disallowed-tools`/`model`/`hooks`/…) | `agents/openai.yaml`(`interface`·`policy`·`dependencies`) |
 | **자동발동 끄기** | `disable-model-invocation: true` | `policy.allow_implicit_invocation: false` |
-| **외부 도구 의존** | (권한·MCP 설정) | `agents/openai.yaml`의 `dependencies.tools[]` |
+| **외부 도구 의존** | (권한·MCP(= Model Context Protocol, 외부 도구·데이터를 에이전트에 붙이는 표준) 설정) | `agents/openai.yaml`의 `dependencies.tools[]` |
 | **번들 스크립트 경로** | `${CLAUDE_SKILL_DIR}/scripts/...` | 스킬 폴더 기준 상대경로 |
 | **이름·설명 예산** | 컨텍스트의 ≈1%, 항목당 1,536자 | 이름·설명 합 ~8,000자 |
 | **동적 컨텍스트 주입** | `` !`command` `` / ` ```! ` 블록 | (해당 기능 미지원 — 본문 지시로) |

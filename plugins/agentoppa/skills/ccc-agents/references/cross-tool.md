@@ -5,8 +5,8 @@
 ## 1. 공통 (의미가 같은 교집합 — 한 번만 작성)
 
 - **개념**: 이름 붙은, 재사용·위임 가능한, 자기 역할/지시를 가진 에이전트. 격리 컨텍스트에서 돌고 **요약을 반환**.
-- **필드 의미**: `name` · `description`(언제 쓰나) · 시스템 프롬프트(역할/지시) · 모델 · 추론 강도 · 능력 범위 · MCP · 스킬 프리로드.
-- **설계 철학**: 단일 책임 · description front-load · 능력 최소화(read-heavy 우선) · 요약 반환 · self-contained 지시.
+- **필드 의미**: `name` · `description`(언제 쓰나) · 시스템 프롬프트(= 역할·행동 기본 지시문) · 모델 · 추론 강도 · 능력 범위 · MCP(= 외부 도구·데이터를 붙여 주는 연결 규격, Model Context Protocol) · 스킬 프리로드(= 시작 시 미리 불러오기).
+- **설계 철학**: 단일 책임 · description front-load(= 핵심 판단 근거를 앞쪽에) · 능력 최소화(read-heavy(= 주로 읽기만 하는 일) 우선) · 요약 반환 · self-contained(= 외부 맥락 없이 자립) 지시.
 
 → 이 의미층은 **소스 `.md` 한 벌**에 담고, 형식만 도구별로 **생성**한다.
 
@@ -30,7 +30,7 @@
 
 ## 3. 형식이 안 합쳐진다 → 빌드타임 브리지
 
-skills(`SKILL.md`)·hooks(`hooks.json`)는 **한 파일이 런타임에 양쪽서** 그대로 돌았다. agents는 형식(`.md`/`.toml`)·디렉토리가 둘 다 다르고, 두 도구 모두 에이전트 정의에 **외부 프롬프트 파일 include가 없다** → 손으로 두 벌 쓰면 지시문(가장 큰 부분)이 중복·드리프트.
+skills(`SKILL.md`)·hooks(`hooks.json`)는 **한 파일이 런타임에 양쪽서** 그대로 돌았다. agents는 형식(`.md`/`.toml`)·디렉토리가 둘 다 다르고, 두 도구 모두 에이전트 정의에 **외부 프롬프트 파일 include(= 다른 파일을 끌어다 끼워 넣기)가 없다** → 손으로 두 벌 쓰면 지시문(가장 큰 부분)이 중복·드리프트(= 두 벌이 점점 어긋남).
 
 **해법: 단일 소스 + 단방향 생성.**
 
@@ -43,13 +43,13 @@ node ${CLAUDE_PLUGIN_ROOT}/bin/build-agents.mjs .claude/agents .codex/agents
 - **안전 변환만**: 번역 안 되는 모델명·Claude 전용 필드는 드롭/상속하고 **로그로 알린다**(무음 누락 금지). 매핑 표: [`frontmatter.md`](frontmatter.md) §4.
 - **탈출구**: 생성된 `.toml`에 Codex 고유값(`nickname_candidates`, `sandbox_mode="workspace-write"`, `mcp_servers`)이 필요하면 `codex-model:` 같은 힌트로 소스에서 제어하거나, 생성 후 손으로 보강(단 재생성 시 덮어씀에 주의).
 
-> 철학: **컴포넌트(역할 프롬프트=교집합)는 공유, 형식 래퍼만 도구별 생성.** ccc-skills가 "스크립트 공유 + 매니페스트만 분기"였다면, agents는 "프롬프트 공유 + 형식을 생성으로 분기"다.
+> 철학: **컴포넌트(역할 프롬프트=교집합)는 공유, 형식 래퍼(= 도구별 포장 형식)만 도구별 생성.** ccc-skills가 "스크립트 공유 + 매니페스트(= 어떤 컴포넌트가 있는지 적어 둔 구성 정보 파일)만 분기"였다면, agents는 "프롬프트 공유 + 형식을 생성으로 분기"다.
 
 ## 4. 플러그인 패키징 (배포)
 
 | | Claude Code | Codex |
 |---|---|---|
-| 소스 위치 | 플러그인 `agents/*.md` (`.claude-plugin/plugin.json`이 자동발견) | — (Codex는 플러그인 에이전트 자동발견 경로 미정) |
+| 소스 위치 | 플러그인 `agents/*.md` (`.claude-plugin/plugin.json`이 자동발견(= 정해진 위치의 파일을 알아서 찾아 등록)) | — (Codex는 플러그인 에이전트 자동발견 경로 미정) |
 | 적용 | 설치/활성화 시 바로 | 생성된 `.toml`을 소비 프로젝트 `.codex/agents/`에 둠(설치 스텝/훅으로 `build-agents.mjs` 실행) |
 | 마켓플레이스 | `.claude-plugin/marketplace.json` | `.agents/plugins/marketplace.json` |
 

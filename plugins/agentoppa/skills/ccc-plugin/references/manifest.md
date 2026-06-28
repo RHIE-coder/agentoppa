@@ -17,11 +17,11 @@
 
 ## 3. `plugin.json` — Codex (`.codex-plugin/plugin.json`)
 
-- 필수: `name`(kebab-case), `version`(semver), `description`.
+- 필수: `name`(kebab-case = 소문자에 하이픈으로 잇기, 예: `my-plugin`), `version`(semver = `1.2.3` 식 세 자리 버전), `description`.
 - 메타: `author{name,email,url}`, `homepage`, `repository`, `license`, `keywords`.
 - 컴포넌트 포인터(`./`로 시작, **존재하면 반드시 명시**): `skills`(→디렉토리), `mcpServers`(→`.mcp.json`), `apps`(→`.app.json`), `hooks`(→hooks 파일).
 - `interface{}`(UI 메타): `displayName`, `shortDescription`, `longDescription`, `developerName`, `category`, `capabilities`, `websiteURL`, `privacyPolicyURL`, `termsOfServiceURL`, `defaultPrompt[]`, `brandColor`, `composerIcon`, `logo`, `screenshots[]`.
-- 검증 CLI는 문서화 안 됨(셀프서브 퍼블리싱 "coming soon").
+- 검증 CLI는 문서화 안 됨(셀프서브 퍼블리싱 = 직접 올려 배포하기 "coming soon").
 
 ## 4. 교집합 / 도구 전용 매핑
 
@@ -41,13 +41,13 @@
 
 ## 6. `marketplace.json` — Codex (`.agents/plugins/marketplace.json`)
 
-- 위치: repo `$ROOT/.agents/plugins/marketplace.json`, 개인 `~/.agents/plugins/marketplace.json`, **legacy** `$ROOT/.claude-plugin/marketplace.json`(Codex가 폴백으로 읽음).
+- 위치: repo `$ROOT/.agents/plugins/marketplace.json`, 개인 `~/.agents/plugins/marketplace.json`, **legacy(= 구버전 호환)** `$ROOT/.claude-plugin/marketplace.json`(Codex가 폴백 = 없을 때 대신 읽음).
 - 구조: `name`, `interface{displayName}`, `plugins[]`.
 - `plugins[]` 항목: `name`, `source{source:"local"|"git-subdir", path | url/ref}`, `policy{installation, authentication}`, `category`.
 - `policy.installation`: `AVAILABLE` · `INSTALLED_BY_DEFAULT` · `NOT_AVAILABLE`. `authentication`: 생략하거나 `ON_INSTALL` · `ON_USE`.
 - CLI: `codex plugin marketplace add owner/repo [--ref <r>] [--sparse <path>]` · `list` · `upgrade` · `remove`.
 
-> ⚠ **흔한 실수(라이브 e2e 에서 실제 발생):** Claude 마켓의 `owner{}` 를 codex 마켓에 베끼지 말 것 — codex 는 `name`+`interface` 를 쓰고 `policy` enum 도 위 값만 받는다(`"explicit"`/`"none"` 등은 거부). `source.path` 는 `"."`(루트) 아니라 **`./plugins/<name>/` 서브디렉터리**여야 codex 가 발견한다(루트는 "No plugins found"). validator(`scripts/validate.mjs`)가 enum·name·layout 을 기계 강제.
+> ⚠ **흔한 실수(라이브 e2e(= 처음부터 끝까지 전체 흐름을 돌려보는 테스트)에서 실제 발생):** Claude 마켓의 `owner{}` 를 codex 마켓에 베끼지 말 것 — codex 는 `name`+`interface` 를 쓰고 `policy` enum(= 정해진 값 목록 중 하나만 허용) 도 위 값만 받는다(`"explicit"`/`"none"` 등은 거부). `source.path` 는 `"."`(루트) 아니라 **`./plugins/<name>/` 서브디렉터리**여야 codex 가 발견한다(루트는 "No plugins found"). validator(`scripts/validate.mjs`)가 enum·name·layout 을 기계 강제.
 
 ## 출처
 

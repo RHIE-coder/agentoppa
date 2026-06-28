@@ -41,7 +41,7 @@ impl:                         # (선택) 구현 키의 알맹이. 한 줄 명령
    bindings:
      e2e-runner: "npx playwright test"   # 우변이 명령 문자열 = 인라인. impl 불필요
    ```
-2. **모듈 참조** — playwright 셋업처럼 여러 줄 절차·여러 명령·env가 필요하면, 구현을 `.harness/project/impl/<key>.md`(절차·명령 묶음) 또는 `.harness/project/impl/<key>.mjs`(zero-dep 실행 스크립트)에 두고 *경로로* 가리킨다. 경로는 항상 `.harness/` 기준 상대(절대경로·원본 프로젝트 경로 박기 금지).
+2. **모듈 참조** — playwright 셋업처럼 여러 줄 절차·여러 명령·env가 필요하면, 구현을 `.harness/project/impl/<key>.md`(절차·명령 묶음) 또는 `.harness/project/impl/<key>.mjs`(zero-dep = 외부 의존성 없이 도는 실행 스크립트)에 두고 *경로로* 가리킨다. 경로는 항상 `.harness/` 기준 상대(절대경로·원본 프로젝트 경로 박기 금지).
    ```yaml
    bindings:
      e2e-runner:       playwright            # impl 키
@@ -50,7 +50,7 @@ impl:                         # (선택) 구현 키의 알맹이. 한 줄 명령
      playwright:       ./project/impl/playwright.md   # 절차 문서(에이전트가 읽고 따름)
      prisma-migrate:   ./project/impl/migrate.mjs     # zero-dep 실행 스크립트(node로 실행)
    ```
-   - `.md` = 사람·AI가 읽는 절차(설치·env·명령 순서). frontmatter에 `provides: <능력명>`을 달면 validate가 능력↔모듈 일치를 점검한다.
+   - `.md` = 사람·AI가 읽는 절차(설치·env·명령 순서). frontmatter(= 파일 맨 위 `---` 사이의 구조화된 설정 블록)에 `provides: <능력명>`을 달면 validate가 능력↔모듈 일치를 점검한다.
    - `.mjs` = 돌고 끝나는 검사·실행기(상주 엔진 금지). Node 빌트인만(zero-dep, 크로스OS). 스킬이 `node ${CLAUDE_PROJECT_DIR}/.harness/project/impl/<key>.mjs` 식으로 부른다.
    - 왜 `.harness/project/impl/`인가: 구현 모듈은 **프로젝트 차이가 사는 곳**이고 Core는 이 폴더를 *모른다*(한 방향 — Project→Core 참조만). 보조 에이전트가 `project/agents/`에 살듯, 구현 모듈은 `project/impl/`에 산다 — 대칭. 단계는 모듈을 *가리키기*만 하고 본문을 복사하지 않는다(통째로 빼도 Core 멀쩡).
 
@@ -93,7 +93,7 @@ phases:
 
 ## routing — 모델 (tier × routing)
 
-phase의 `tier`(cheap·standard·strong) × config의 `routing`(budget·balanced·premium)이 **단계마다 모델/effort를 결정**한다:
+phase의 `tier`(cheap·standard·strong) × config의 `routing`(budget·balanced·premium)이 **단계마다 모델/effort(= 모델이 얼마나 깊이 생각할지)를 결정**한다:
 
 | tier ＼ routing | budget | balanced | premium |
 |---|---|---|---|

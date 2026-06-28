@@ -54,7 +54,7 @@ process.exit(0);   // 통과 (아무 것도 안 하면 그냥 0)
 
 ## 3. (선택) Codex 등가형 — `config.toml`
 
-같은 스크립트를 Codex에서도 굴릴 때. matcher는 정규식, 경로변수는 env `$PLUGIN_ROOT`.
+같은 스크립트를 Codex에서도 굴릴 때. matcher는 정규식, 경로변수는 env(= 환경변수) `$PLUGIN_ROOT`.
 
 ```toml
 [[hooks.PreToolUse]]

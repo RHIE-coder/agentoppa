@@ -32,7 +32,7 @@
 <Claude에서만 다르게 둘 한두 줄. 없으면 `@AGENTS.md` 한 줄로 충분>
 ```
 
-> 또는 symlink: `ln -s AGENTS.md CLAUDE.md` (Windows는 import 권장). **본문을 복붙하지 말 것 = drift.**
+> 또는 symlink(= 한 파일을 가리키는 바로가기): `ln -s AGENTS.md CLAUDE.md` (Windows는 import 권장). **본문을 복붙하지 말 것 = drift(= 두 곳이 따로 놀며 어긋남).**
 
 ## 3. `<memoryDir>/` (전용 하네스 디렉토리 — git 커밋)
 

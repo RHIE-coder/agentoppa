@@ -31,14 +31,14 @@ workers:                      # (선택) 부릴 보조 에이전트 + 선택 규
 | 키 | 뜻 | 컴파일되면 |
 |---|---|---|
 | `name` | id | `/name` 스킬 |
-| `desc` | *언제 쓰나*(트리거) front-load (절차 요약 ❌) | 스킬 `description` (에이전트가 호출 판단) |
+| `desc` | *언제 쓰나*(트리거)를 앞세워 적기(front-load = 핵심을 맨 앞에) (절차 요약 ❌) | 스킬 `description` (에이전트가 호출 판단) |
 | `when` | (선택) 실행 조건 | **본문 맨 위 self-gate** (불충족 → `{next}`로 건너뜀) |
 | `consumes` | 받는 산출물 role (`?`=선택) | 본문 입력 `{역할}` |
 | `produces` | 남기는 산출물 role (`~`=없음) | 산출물 문서(헤더) |
 | `gate` | done 조건 | `sync=strict`면 게이트 훅 |
 | `requires` | (선택) 프로젝트 빈자리. 항목 = 값-빈자리 \| `:capability` 능력-빈자리 (`?`=선택) | 값-빈자리 → 본문 `{이름}`에 박힘 · 능력-빈자리 → 본문 `{cap:이름}`이 런타임에 `config.bindings`에서 읽음; validate가 미바인딩을 error |
 | ~~`needs`~~ | `requires`의 옛 이름(값-빈자리만) — 하위호환 별칭 | (위와 동일, 값-빈자리 케이스) |
-| `tier` | (선택) 모델 horsepower | `routing`과 곱해 모델/effort → ccc-agents |
+| `tier` | (선택) 모델 성능 등급(horsepower = 얼마나 센 모델을 쓸지) | `routing`과 곱해 모델/effort → ccc-agents |
 | `workers` | (선택) 보조 에이전트 + 조건 | 서브에이전트 스폰 (정의는 `agents/<name>.md`) |
 
 > `consumes`/`produces`는 **문서 바통만** 적는다 — 코드는 산출물이 아니라 작업 트리(본문에서 `git diff` 등으로 직접 읽음). role이 *어떤 파일로* 풀리는지는 `contract.md`.
@@ -53,7 +53,7 @@ requires: [test_command, e2e-runner:capability, migration-runner:capability?]
 ```
 
 - **값-빈자리(literal)** — 접미사 없는 항목. `config.values[이름]`이 채우고, 본문 `{이름}` 슬롯에 **컴파일 때 박힌다**(예: `{test_command}` → `npm test`). 옛 `needs`와 100% 동치.
-- **능력-빈자리(interface slot)** — `:capability` 접미사. `config.bindings[이름]`이 *어떤 구현을 쓸지* 채우고, 값은 **런타임에** 본문이 직접 읽는다(컴파일 때 안 박음 → 같은 Core를 다른 구현으로 재사용). 이름은 kebab-case 능력 일반명 — 도구명 금지(`playwright` ✗, `e2e-runner` ✓).
+- **능력-빈자리(interface slot)** — `:capability` 접미사. `config.bindings[이름]`이 *어떤 구현을 쓸지* 채우고, 값은 **런타임에** 본문이 직접 읽는다(컴파일 때 안 박음 → 같은 Core를 다른 구현으로 재사용). 이름은 kebab-case(= 소문자에 하이픈으로 단어 잇기) 능력 일반명 — 도구명 금지(`playwright` ✗, `e2e-runner` ✓).
 - `requires`는 **프로젝트 능력·값**, `consumes`/`produces`는 **산출물 바통(role)**. 다른 것 — 섞지 않는다. 능력은 `bindings`가, 산출물은 앞 단계 `produces`가 채운다.
 
 ### 능력-빈자리는 본문이 런타임에 푼다 — `{cap:<이름>}`

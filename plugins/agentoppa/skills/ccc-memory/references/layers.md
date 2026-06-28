@@ -12,7 +12,7 @@
 
 ## 2. Claude Code 로드 (정밀)
 
-- **파일:** managed(OS별) → `~/.claude/CLAUDE.md`(user) → `./CLAUDE.md` 또는 `./.claude/CLAUDE.md`(project) → `./CLAUDE.local.md`(local). 전부 **concat**(override 아님; 가까울수록 뒤·우선).
+- **파일:** managed(OS별) → `~/.claude/CLAUDE.md`(user) → `./CLAUDE.md` 또는 `./.claude/CLAUDE.md`(project) → `./CLAUDE.local.md`(local). 전부 **concat**(= 이어붙임; override 아님; 가까울수록 뒤·우선).
 - **디렉토리 탐색:** 루트→cwd 상위 파일은 **launch에 full 로드**. cwd **하위** 서브트리 파일은 **파일 읽을 때 on-demand**.
 - **`@import`:** depth ≤ 4, 코드펜스/인라인코드 제외, 상대경로는 그 파일 기준, `~/` 가능. **launch에 인라인 = 상주**(정리용이지 절감 아님). 외부 import는 첫 사용 시 승인 다이얼로그.
 - **auto-memory:** `~/.claude/projects/<proj>/memory/MEMORY.md`(+토픽파일). 매 세션 **첫 200줄/25KB**만 로드. v2.1.59+, 기본 ON. **끄기:** `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` 또는 `autoMemoryEnabled: false`.
@@ -36,13 +36,13 @@
 
 ## 5. [탈출구] Claude `.claude/rules/`
 
-- `.claude/rules/*.md`(+`~/.claude/rules/`), 재귀 탐색. `paths:` frontmatter(glob, brace expansion)가 있으면 **매칭 파일을 읽을 때만** 로드, 없으면 launch 로드(=`.claude/CLAUDE.md`급 우선). user → project 순(project 우선).
+- `.claude/rules/*.md`(+`~/.claude/rules/`), 재귀 탐색. `paths:` frontmatter(glob = `*`·`**` 와일드카드 매칭, brace expansion = `{a,b}` 펼치기)가 있으면 **매칭 파일을 읽을 때만** 로드, 없으면 launch 로드(=`.claude/CLAUDE.md`급 우선). user → project 순(project 우선).
 - **Claude 전용. 이식 안 됨.** Codex 동등물 없음 → 이식하려면 중첩 `AGENTS.md`(디렉토리 단위) 또는 AGENTS.md 산문 조건("When editing X, …"). **진실은 AGENTS.md에**, rules는 그 위 지연로딩 최적화로만.
 - 트리거 차이: Claude `paths:`는 **파일 읽기** 트리거(어느 cwd든), Codex 중첩 AGENTS.md는 **cwd** 기준(아래로 안 내려감). 동일하지 않다.
 
 ## 6. 타 도구 (참고)
 
-- Cursor `.cursor/rules/*.mdc`(`globs`/`alwaysApply`), GitHub Copilot `.github/instructions/*.instructions.md`(`applyTo`), Windsurf `.windsurf/rules/*.md`(`trigger`). 전부 **글로브-frontmatter 조건부 규칙** 패턴. `AGENTS.md`는 이들 다수가 지원(nearest wins).
+- Cursor `.cursor/rules/*.mdc`(`globs`/`alwaysApply`), GitHub Copilot `.github/instructions/*.instructions.md`(`applyTo`), Windsurf `.windsurf/rules/*.md`(`trigger`). 전부 **글로브-frontmatter 조건부 규칙** 패턴. `AGENTS.md`는 이들 다수가 지원(nearest wins = 가장 가까운 파일이 우선).
 
 ## 출처
 

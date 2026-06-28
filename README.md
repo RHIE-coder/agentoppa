@@ -11,11 +11,11 @@ Cross-OS — **Mac · Linux · Windows**
 
 # Install — 플러그인으로 쓰기
 
-> 다른 프로젝트에서 AgentOppa를 **설치해서** 쓰는 법. (이 repo 자체를 고치며 쓰는 dogfood는 아래 [Usage](#usage--이-repo-실행-dogfood).)
+> 다른 프로젝트에서 AgentOppa를 **설치해서** 쓰는 법. (이 repo 자체를 고치며 쓰는 dogfood(= 자기 도구를 자기 프로젝트에 직접 써 보는 것)는 아래 [Usage](#usage--이-repo-실행-dogfood).)
 >
 > ⚠️ 아직 GitHub remote 미설정 — 공개되면 `github.com/rhie-coder/agentoppa` 로 간다. 그때 아래 명령이 그대로 동작한다.
 
-플러그인 설치는 **두 걸음** — 마켓플레이스(= 플러그인 목록을 담은 저장소)를 등록하고, 거기서 플러그인을 고른다. AgentOppa는 양쪽 도구용 마켓 매니페스트를 repo에 함께 싣는다.
+플러그인 설치는 **두 걸음** — 마켓플레이스(= 플러그인 목록을 담은 저장소)를 등록하고, 거기서 플러그인을 고른다. AgentOppa는 양쪽 도구용 마켓 매니페스트(= 어떤 플러그인이 있는지 적어 둔 구성 정보 파일)를 repo에 함께 싣는다.
 
 ### Claude Code
 ```bash
@@ -50,7 +50,7 @@ codex plugin marketplace remove rhie-coder/agentoppa
 claude --plugin-dir ./plugins/agentoppa
 
 # 권한 스킵 (격리 환경에서만 권장)
-claude --plugin-dir ./plugins/agentoppa --dangerously-skip-permissions
+claude --dangerously-skip-permissions --plugin-dir ./plugins/agentoppa 
 ```
  - 플러그인 파일을 고친 뒤 세션 안에서 `/reload-plugins` 로 반영(재시작 불필요).
 
@@ -79,7 +79,7 @@ codex --dangerously-bypass-approvals-and-sandbox
 이 repo로 만드는 핵심 흐름은 **재사용 Core를 한 번 짓고, 여러 프로젝트가 그걸 가리켜 쓰는 것**이다. 세 걸음:
 
 ### ⓐ Core 짓기 — 재사용 프레임워크를 만든다
-재사용할 *워크플로우*(단계 흐름·게이트)와 *인터페이스 빈자리*(프로젝트마다 갈릴 자리, 예: e2e 러너)를 정해 Core 묶음을 빌드한다.
+재사용할 *워크플로우*(단계 흐름·게이트)와 *인터페이스 빈자리*(프로젝트마다 갈릴 자리, 예: e2e(= 처음부터 끝까지 전체 흐름을 돌려보는 테스트) 러너)를 정해 Core 묶음을 빌드한다.
 ```bash
 # 1) 의도 면담 (재사용 틀로 짓는다 = 프레임워크 수준)
 #    intent-interview 가 'level: framework' 로 분기 → 어떤 단계·흐름, 어떤 능력 빈자리, 겨냥 프로젝트군을 캔다.

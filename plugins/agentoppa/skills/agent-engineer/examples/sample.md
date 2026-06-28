@@ -1,6 +1,6 @@
 # examples/sample.md — 한 Core, 두 프로젝트 (다른 구현)
 
-재사용의 비결을 한눈에: **같은 Core `dev-flow`(spec→tdd→e2e→review)** 를 두 프로젝트가 가리켜 쓰는데, 다른 건 각자 `.harness/config.yaml`의 `bindings` **한두 줄**뿐이다. Core 단계 소스는 양쪽이 **글자 그대로 똑같다** — 값을 안 박았으니까.
+재사용의 비결을 한눈에: **같은 Core `dev-flow`(spec→tdd→e2e→review · tdd = 테스트를 먼저 쓰고 그에 맞춰 구현하는 방식, e2e = 처음부터 끝까지 전체 흐름을 돌려보는 테스트)** 를 두 프로젝트가 가리켜 쓰는데, 다른 건 각자 `.harness/config.yaml`의 `bindings` **한두 줄**뿐이다. Core 단계 소스는 양쪽이 **글자 그대로 똑같다** — 값을 안 박았으니까.
 
 ## 0. 면담 (요약 — 두 모드)
 
@@ -101,7 +101,7 @@ impl:
 /review → (코드 diff + spec.md + e2e.md) → review.md   (sync=strict)
 ```
 
-역할→경로의 `{feature}`만 갈린다: A는 `.harness/artifacts/login-oauth/`, B는 `.harness/artifacts/settle-batch/`. git-committed라 어느 도구·세션에서 열어도 같은 바통(resume).
+역할→경로의 `{feature}`만 갈린다: A는 `.harness/artifacts/login-oauth/`, B는 `.harness/artifacts/settle-batch/`. git-committed라 어느 도구·세션에서 열어도 같은 바통(resume = 끊긴 작업을 중간부터 다시 잇기).
 
 ## 5. 검사 (두 계약 한 번에)
 

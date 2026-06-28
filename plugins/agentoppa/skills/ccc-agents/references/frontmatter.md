@@ -4,23 +4,23 @@
 
 ## 1. Claude Code — `.claude/agents/<name>.md` frontmatter
 
-`---` 사이 YAML + 본문(=시스템 프롬프트). 정체성은 파일명이 아니라 `name`. 경로 우선순위: managed → `--agents` → `.claude/agents/`(프로젝트) → `~/.claude/agents/`(개인) → 플러그인 `agents/`.
+`---` 사이 YAML(= 들여쓰기로 키·값을 적는 설정 표기법) + 본문(=시스템 프롬프트(= 역할·행동 기본 지시문)). 정체성은 파일명이 아니라 `name`. 경로 우선순위: managed → `--agents` → `.claude/agents/`(프로젝트) → `~/.claude/agents/`(개인) → 플러그인 `agents/`.
 
 | 필드 | 필수 | 의미 |
 |---|---|---|
 | `name` | ✅ | 식별자(소문자·하이픈). 훅에 `agent_type`으로 전달 |
 | `description` | ✅ | **언제 위임하나** — 자동 위임 판단 근거 |
-| `tools` | — | 쉼표구분 도구 allowlist. 생략 시 메인의 전체 도구 상속 |
+| `tools` | — | 쉼표구분 도구 allowlist(= 허용할 도구만 적은 목록). 생략 시 메인의 전체 도구 상속 |
 | `disallowedTools` | — | 상속/지정 풀에서 제거할 도구 |
 | `model` | — | `sonnet`/`opus`/`haiku`/`fable`/full-id/`inherit`(기본) |
 | `effort` | — | `low`/`medium`/`high`/`xhigh`/`max`. 세션값 오버라이드 |
 | `skills` | — | 시작 시 프리로드할 스킬(전체 내용 주입) |
-| `mcpServers` | — | 이 에이전트용 MCP(이름 또는 인라인). **플러그인 서브에이전트에선 무시** |
+| `mcpServers` | — | 이 에이전트용 MCP(= 외부 도구·데이터를 붙여 주는 연결 규격, Model Context Protocol)(이름 또는 인라인). **플러그인 서브에이전트에선 무시** |
 | `permissionMode` | — | `default`/`acceptEdits`/`auto`/`dontAsk`/`bypassPermissions`/`plan` |
 | `maxTurns` | — | 최대 에이전트 턴 수 |
 | `memory` | — | `user`/`project`/`local` — 세션 간 지속 메모리 |
 | `background` | — | `true`면 항상 백그라운드 동시 실행 |
-| `isolation` | — | `worktree`면 임시 git worktree에서 실행(병렬 쓰기 충돌 회피) |
+| `isolation` | — | `worktree`면 임시 git worktree(= 같은 저장소의 분리된 작업 사본)에서 실행(병렬 쓰기 충돌 회피) |
 | `color` | — | 표시 색 |
 | `hooks` | — | 이 에이전트에 스코프된 훅. 플러그인 서브에이전트에선 무시 |
 | `initialPrompt` | — | `--agent`로 메인 세션일 때 자동 첫 입력 |
@@ -29,13 +29,13 @@
 
 ## 2. Codex — `.codex/agents/<name>.toml`
 
-표준 TOML 한 파일. 경로: `.codex/agents/`(프로젝트) · `~/.codex/agents/`(개인, 프로젝트가 우선). 내장 에이전트 `default`/`worker`/`explorer`는 파일 없이 사용(동명 커스텀이 우선).
+표준 TOML(= 키=값 형식의 설정 파일 포맷) 한 파일. 경로: `.codex/agents/`(프로젝트) · `~/.codex/agents/`(개인, 프로젝트가 우선). 내장 에이전트 `default`/`worker`/`explorer`는 파일 없이 사용(동명 커스텀이 우선).
 
 | 키 | 필수 | 의미 |
 |---|---|---|
 | `name` | ✅ | 식별자 |
 | `description` | ✅ | **언제 쓰나** — 선택 가이드(자동 트리거 아님) |
-| `developer_instructions` | ✅ | 핵심 행동 지시(multi-line `"""..."""`) = Claude 본문에 해당 |
+| `developer_instructions` | ✅ | 핵심 행동 지시(여러 줄 `"""..."""`) = Claude 본문에 해당 |
 | `model` | — | 생략 시 부모 세션 상속 |
 | `model_reasoning_effort` | — | 추론 강도 `minimal`/`low`/`medium`/`high`/`xhigh`(xhigh는 model-dependent). 생략 시 상속 |
 | `sandbox_mode` | — | `"read-only"` 등 능력 범위. 생략 시 상속 |
@@ -74,10 +74,10 @@ ccc-skills의 Codex `openai.yaml` "탈출구"와 같은 역할. Claude는 모르
 
 ## 5. 공통 권장 (둘 다)
 
-- **단일 책임**, `description`은 "언제"만 front-load(절차 요약 금지).
+- **단일 책임**, `description`은 "언제"만 front-load(= 앞쪽에 배치, 절차 요약 금지).
 - **요약 반환** — 격리 컨텍스트의 가치 = 메인 대화 오염 방지(양 문서 명시).
-- **능력 최소화** — read-heavy(탐색·리뷰·트리아지)에 read-only 기본.
-- 지시는 **self-contained**(격리 컨텍스트).
+- **능력 최소화** — read-heavy(= 주로 읽기만 하는 일: 탐색·리뷰·트리아지)에 read-only 기본.
+- 지시는 **self-contained**(= 외부 맥락 없이 자립, 격리 컨텍스트).
 
 ## 출처
 

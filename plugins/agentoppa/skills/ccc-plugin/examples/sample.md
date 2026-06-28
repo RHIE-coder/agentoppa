@@ -1,4 +1,4 @@
-# 견본 — AgentOppa 자체가 dual-target 플러그인
+# 견본 — AgentOppa 자체가 dual-target(= 한 벌로 두 도구를 다 겨냥하는) 플러그인
 
 [`SKILL.md`](../SKILL.md)의 목표 형식. **이 플러그인(AgentOppa)이 곧 예제다** — 컴포넌트는 한 트리에 공유, 매니페스트·마켓만 도구별.
 
@@ -50,4 +50,4 @@ AgentOppa/                              # 마켓 repo 루트
 
 - `description: ""` · `version: "0.0.0"` · `owner: "TODO"` 방치 → 검증기가 잡는다. 채우고 **두 곳을 일치**시킨다.
 - Codex 매니페스트에서 `skills` 포인터를 빠뜨리면 Codex에서 스킬이 안 잡힌다. Claude는 자동발견이라 같은 누락이 안 들켜서, 한쪽만 테스트하면 놓친다 → **양쪽 다 설치 테스트**.
-- 매니페스트 메타를 한쪽만 고치고 다른 쪽을 안 고치면 드리프트. 단일 소스로 두거나 `bin/build-manifests.mjs`로 생성.
+- 매니페스트 메타를 한쪽만 고치고 다른 쪽을 안 고치면 드리프트(= 서로 어긋남). 단일 소스로 두거나 `bin/build-manifests.mjs`로 생성.

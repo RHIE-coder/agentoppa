@@ -1,9 +1,9 @@
 # handoff.md — 산출 계약 (의도 브리프)
 
-면담의 산출물 = `.harness/intent.md`. *설계 의도*를 담아 다음 단계로 넘기는 문서다 — 커밋되면 어느 도구·세션에서 열어도 같은 의도를 집어 든다(resume·크로스툴). 캐는 방법은 [method.md](method.md). 면담 수준(프레임워크/프로젝트 — [SKILL.md](../SKILL.md) "면담 수준 고르기")에 따라 머리말 `level`과 *힌트 섹션*이 갈린다(나머지 섹션은 두 수준 공통).
+면담의 산출물 = `.harness/intent.md`. *설계 의도*를 담아 다음 단계로 넘기는 문서다 — 커밋되면 어느 도구·세션에서 열어도 같은 의도를 집어 든다(resume(= 끊겼다 이어서 하기)·크로스툴(= Claude·Codex 양쪽)). 캐는 방법은 [method.md](method.md). 면담 수준(프레임워크/프로젝트 — [SKILL.md](../SKILL.md) "면담 수준 고르기")에 따라 머리말 `level`과 *힌트 섹션*이 갈린다(나머지 섹션은 두 수준 공통).
 
 ## 경로
-`.harness/intent.md` — 하네스 *설계 시 1회* 산출이라 `{feature}` 경로 스킴 밖에 둔다(설계는 기능마다가 아니다). 기능별 요구는 다른 층위다(↓ 재사용).
+`.harness/intent.md` — 하네스 *설계 시 1회* 산출이라 `{feature}` 경로 스킴(= 기능 이름별로 폴더를 나누는 경로 규칙) 밖에 둔다(설계는 기능마다가 아니다). 기능별 요구는 다른 층위다(↓ 재사용).
 
 ## 문서 머리말
 agent-engineer [contract.md](../../agent-engineer/references/contract.md) §2 양식을 그대로 따른다:
