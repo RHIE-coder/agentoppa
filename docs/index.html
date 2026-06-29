@@ -607,6 +607,20 @@ codex plugin marketplace add <span class="s">rhie-coder/agentoppa</span></pre>
         }).catch(function(){});
       });
     });
+
+    /* 인페이지 앵커 부드러운 스크롤 (#how·#install 등) */
+    document.querySelectorAll('a[href^="#"]').forEach(function(a){
+      a.addEventListener('click', function(e){
+        var id = a.getAttribute('href').slice(1);
+        if(!id) return;
+        var el = document.getElementById(id);
+        if(el){
+          e.preventDefault();
+          el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+          if(history.replaceState) history.replaceState(null, '', '#' + id);
+        }
+      });
+    });
   })();
 </script>
 </body>
