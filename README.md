@@ -116,12 +116,7 @@ codex plugin marketplace remove rhie-coder/agentoppa
 ```
 
 - `marketplace add` only *registers the marketplace* — you still run `codex plugin add` to **install the plugin** (it shows as `not installed` in `plugin list`). Codex has no hot-reload, so **restart** after installing or updating.
-
-> **Install for this project only (Project Scope).** Codex has no install-scope choice (User/Project/Local) like Claude, so by default it registers globally in `~/.codex`. To keep it to **this project**, ask codex:
-> ```text
-> install rhie-coder/agentoppa for this project only (.codex/)
-> ```
-> codex points `CODEX_HOME` at this project and registers it in `.codex/config.toml` — **commit that file to share** (project scope), and add `.codex/.tmp` to `.gitignore` (it's just a cache).
+- **Codex has no install-scope choice (User/Project/Local) — it installs globally (`~/.codex`)**; project-only install isn't cleanly supported by codex yet.
 
 ---
 

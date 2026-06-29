@@ -116,12 +116,7 @@ codex plugin marketplace remove rhie-coder/agentoppa
 ```
 
 - `marketplace add`는 *마켓 등록*만이라, `codex plugin add`로 **플러그인까지 설치**해야 합니다(`plugin list`에 `not installed`로 보임). Codex엔 핫리로드가 없어, 설치·업데이트 뒤 **다시 시작**하면 반영됩니다.
-
-> **이 프로젝트에만 설치(Project Scope).** Codex엔 Claude 같은 설치 범위 선택(User/Project/Local)이 없어 기본은 전역 `~/.codex`에 등록됩니다. **이 프로젝트에만** 두려면 codex에게 이렇게 부탁하세요:
-> ```text
-> rhie-coder/agentoppa 를 이 프로젝트(.codex/)에만 등록·설치해줘
-> ```
-> codex가 `CODEX_HOME`을 이 프로젝트로 잡아 `.codex/config.toml`에 등록합니다 — 그 파일을 **커밋하면 팀과 공유**(project scope), `.codex/.tmp`는 캐시라 `.gitignore`에 넣으세요.
+- **Codex는 설치 범위 선택(User/Project/Local)이 없어 전역(`~/.codex`)에 설치됩니다** — 프로젝트 한정 설치는 codex가 아직 깔끔히 지원하지 않습니다.
 
 ---
 
