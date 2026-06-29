@@ -608,17 +608,19 @@ codex plugin marketplace add <span class="s">rhie-coder/agentoppa</span></pre>
       });
     });
 
-    /* 인페이지 앵커 부드러운 스크롤 (#how·#install 등) */
+    /* 인페이지 앵커 스크롤 (#how·#install 등).
+       scrollIntoView({behavior:'smooth'}) 는 reveal 의 transform 과 겹치면 Chrome 에서 간헐적으로
+       맨 위(0)로 튀는 버그가 있다 → 목표 위치를 직접 픽셀로 계산해 window.scrollTo 로 이동(안 튐). */
     document.querySelectorAll('a[href^="#"]').forEach(function(a){
       a.addEventListener('click', function(e){
         var id = a.getAttribute('href').slice(1);
         if(!id) return;
         var el = document.getElementById(id);
-        if(el){
-          e.preventDefault();
-          el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-          if(history.replaceState) history.replaceState(null, '', '#' + id);
-        }
+        if(!el) return;
+        e.preventDefault();
+        var top = el.getBoundingClientRect().top + window.scrollY;
+        try { window.scrollTo({ top: top, behavior: reduce ? 'auto' : 'smooth' }); }
+        catch(err) { window.scrollTo(0, top); }
       });
     });
   })();
