@@ -1,5 +1,5 @@
 {
   "name": "agentoppa",
   "version": "0.1.0",
-  "description": "Cross-agent · cross-OS harness for Claude Code and Codex."
+  "description": "Build your own reusable agent-workflow frameworks (harnesses) for Claude Code and Codex, on any OS."
 }
