@@ -29,7 +29,7 @@
 
 ## 설치 — 다른 프로젝트에서 쓰기
 
-두 걸음입니다. **마켓플레이스**(= 플러그인 목록을 담은 저장소)를 등록하고, 거기서 플러그인을 고릅니다. AgentOppa는 두 도구용 목록을 저장소에 함께 싣습니다.
+**마켓플레이스**(= 플러그인 목록을 담은 저장소)를 등록하고, 거기서 플러그인을 고른 뒤 적용합니다. AgentOppa는 두 도구용 목록을 저장소에 함께 싣습니다.
 
 > 다른 사람이 설치하려면 저장소가 **공개(public)** 여야 합니다. 명령은 `rhie-coder/agentoppa` 형식을 씁니다.
 
@@ -41,9 +41,13 @@
 
 # 2) 플러그인 설치 (형식: 플러그인이름@마켓이름)
 /plugin install agentoppa@agentoppa
+
+# 3) 적용 (설치 직후 "Run /reload-plugins to apply" 안내가 뜹니다)
+/reload-plugins
 ```
 
-- 업데이트: `/plugin marketplace update agentoppa` → 다시 `/plugin install agentoppa@agentoppa`
+- **쓰는 법:** 원하는 걸 그냥 설명하면 해당 스킬이 자동으로 켜집니다. 직접 부르려면 `agentoppa:<스킬이름>` 형식 — 예: `/agentoppa:agent-engineer`. (`agentoppa:` 접두어는 Claude Code의 플러그인 네임스페이스라 생략 불가.)
+- 업데이트: `/plugin marketplace update agentoppa` → `/plugin install agentoppa@agentoppa` → `/reload-plugins`
 - 제거: `/plugin uninstall agentoppa@agentoppa`
 
 ### Codex
@@ -59,6 +63,7 @@ codex plugin marketplace remove rhie-coder/agentoppa
 ```
 
 - 등록한 뒤, 세션의 플러그인 목록에서 **AgentOppa를 켭니다**. (기본은 설치만 되고 꺼져 있습니다.)
+- Codex엔 `/reload-plugins` 같은 핫리로드 명령이 없습니다 — 켜거나 업데이트한 뒤 **Codex를 다시 시작**하면 반영됩니다.
 
 ---
 
