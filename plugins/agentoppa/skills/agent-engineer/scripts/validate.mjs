@@ -270,9 +270,10 @@ for (const cap of boundCaps) {
 if (errors === 0) ok("연결 OK (dangling·중복·requires 빈자리 없음)");
 
 // --- 신선도 (산출물 있을 때만, contract §3) ---
-// feature 해석은 build-skills.mjs 와 *동치*여야 한다({feature} 슬롯이 그 경로로 산출물을 적으므로).
-//   config.feature → git 브랜치 슬러그 → "default". (예전엔 config.feature 만 봐서, feature 미설정 시
-//   build 는 브랜치 폴더에 산출물을 적는데 validate 는 딴 데를 봐 신선도 점검을 통째로 건너뛰었다 — 그 갈림을 없앤다.)
+// feature 해석은 컴파일된 스킬의 <작업폴더> 런타임 규칙과 *동치*여야 한다 — 실행 중 에이전트가 그 규칙으로 정한
+//   폴더에 산출물을 적으므로, validate 도 같은 폴더를 봐야 신선도가 맞물린다.
+//   config.feature → git 브랜치 슬러그 → "default". (build-skills 는 이 폴더를 안 박는다 — 스킬 본문의 안내가 규칙을
+//   들고, validate 는 여기서 같은 규칙으로 폴더를 찾는다. 예전엔 config.feature 만 봐 미설정 시 신선도를 통째 건너뛰었다.)
 const feat = C.scalars.feature || gitBranchSlug(harnessDir ? resolve(harnessDir, "..") : ".") || "default";
 {
   const fdir = join(harnessDir, "artifacts", feat);
@@ -310,6 +311,22 @@ function gitBranchSlug(root) {
     }
   } catch { /* git 없음 — 폴백 */ }
   return null;
+}
+
+// --- 프로젝트 고유 검사 확장점 (project/impl/validate-extra.mjs) ---
+//   정본(이 파일)은 Maker 가 재생성하는 계약검사기라 손대지 않는다. 프로젝트만의 회귀 가드는
+//   .harness/project/impl/validate-extra.mjs 에 두면 여기서 *이어서* 실행하고 결과(exit code)를 합친다
+//   (있을 때만 — 없으면 조용히 건너뜀). project/ 는 build 가 안 덮으므로 재빌드에도 산다.
+//   훅과 같은 원칙 — "프로젝트 저작분은 1급, 기본을 덮지 않는다"를 검사에도 확장.
+//   인자 계약: 확장 스크립트는 argv[2] 로 이 cfgPath 를 받는다(harnessDir = dirname(cfgPath) 로 프로젝트를 찾음).
+if (harnessDir) {
+  const extra = join(harnessDir, "project", "impl", "validate-extra.mjs");
+  if (existsSync(extra)) {
+    console.log(`  ${c.d}project 확장 검사 → ${extra}${c.x}`);
+    const r = spawnSync(process.execPath, [extra, cfgPath], { stdio: "inherit" });
+    if (r.status !== 0) err(`project 확장 검사 실패 (validate-extra.mjs exit ${r.status})`);
+    else ok("project 확장 검사 통과");
+  }
 }
 
 console.log(`result: ${errors} error(s), ${warns} warning(s)`);

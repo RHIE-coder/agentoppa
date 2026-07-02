@@ -48,7 +48,7 @@ ccc-hooks/
 
 `공통 10 이벤트 + command + stdin/exit2/hookSpecificOutput` 안에 머물면 `hooks.json` 한 벌로 Claude·Codex 양쪽 동작. 갈리는 지점은 명시적으로 분기한다:
 
-- **경로변수** — Claude `${CLAUDE_PLUGIN_ROOT}` ↔ Codex env `PLUGIN_ROOT`. 매니페스트만 도구별로 두거나, 스크립트가 `process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT`로 흡수.
+- **경로변수** — 명령엔 `${CLAUDE_PLUGIN_ROOT}` 한 벌(Codex가 별칭으로 받아 양쪽 동작 — 공식문서). 맨 `$PLUGIN_ROOT`(Codex 네이티브)는 Claude가 별칭 안 해 깨진다. 스크립트 내부 루트는 `process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT`로 흡수.
 - **입력수정(`updatedInput`)은 Claude 전용** → 양립하려면 deny/allow만 의존.
 - **알림·세션종료는 도구별 분기** — `Notification`/`SessionEnd`(Claude) ↔ `notify`/`Stop`(Codex). `notify`는 hook이 아니다(stdin이 아니라 argv(= 명령행 인자)로 받음·하이픈 필드·차단 불가).
 

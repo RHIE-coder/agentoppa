@@ -77,8 +77,15 @@ for (const [event, entries] of Object.entries(hooks)) {
       }
       const cmd = h.command || "";
       if (type === "command" && !cmd) err(`'${event}' command 핸들러에 command 문자열 없음`);
-      if (wantCodex && /\$\{?CLAUDE_PLUGIN_ROOT\}?|\$\{?CLAUDE_PROJECT_DIR\}?/.test(cmd)) {
-        warn(`'${event}' command가 Claude 경로변수 사용 — Codex는 PLUGIN_ROOT(env); 경로변수 분기 필요`);
+      // 경로변수 이식성 (Codex 실측: CLAUDE_PLUGIN_ROOT·CLAUDE_PLUGIN_DATA 는 Codex 가 별칭으로 세팅 → 양쪽 동작.
+      //   그래서 그 둘이 크로스툴 정답. 경고 대상은 (a) Codex 가 별칭 안 하는 CLAUDE_PROJECT_DIR(작업폴더는 cwd),
+      //   (b) Claude 가 별칭 안 하는 맨 PLUGIN_ROOT/PLUGIN_DATA(= CLAUDE_ 접두 없는 Codex 네이티브).)
+      if (wantCodex && /\$\{?CLAUDE_PROJECT_DIR\}?/.test(cmd)) {
+        warn(`'${event}' command가 CLAUDE_PROJECT_DIR 사용 — Codex엔 이 별칭 없음(작업폴더는 cwd); 분기하거나 스크립트가 흡수`);
+        portable = false;
+      }
+      if (/\$\{?PLUGIN_(?:ROOT|DATA)\}?/.test(cmd)) {
+        warn(`'${event}' command가 맨 PLUGIN_ROOT/PLUGIN_DATA 사용 — Claude엔 이 별칭 없다(안 풀림). 크로스툴은 \${CLAUDE_PLUGIN_ROOT}(Codex가 별칭)로`);
         portable = false;
       }
       if (typeof h.timeout === "number" && h.timeout <= 0) err(`'${event}' timeout이 0 이하`);

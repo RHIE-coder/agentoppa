@@ -1,6 +1,6 @@
 {
   "name": "agentoppa",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Build your own reusable agent-workflow frameworks (harnesses) for Claude Code and Codex, on any OS.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json"

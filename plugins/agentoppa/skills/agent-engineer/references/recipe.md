@@ -10,7 +10,7 @@ Config = **진실원천.** 고른 phase·순서·강도를 `.harness/config.yaml
 harness:  dev-flow            # 이 하네스(=빌드 산출 플러그인) 이름
 core:     my-dev-core         # (재사용 모드) 가리키는 Core 이름 = .agentoppa/plugins/<core>/.
                               #   생략 = 이 .harness가 자기 phase를 직접 든 단독 하네스(그대로 유효).
-feature:  login-oauth         # 작업 스코프 (역할→경로의 {feature}); 생략 시 git 브랜치
+feature:  login-oauth         # 작업 스코프 (역할→경로의 <작업폴더>); 생략 시 git 브랜치
 sync:     medium              # loose | medium | strict (전역 기본)
 routing:  balanced            # budget | balanced | premium (모델)
 phases:                       # 순서 = 흐름. 각 이름 → 워크플로우의 phase

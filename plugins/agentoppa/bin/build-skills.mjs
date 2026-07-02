@@ -5,7 +5,8 @@
 //         빌드한다. Core = AgentOppa 자신과 동형의 자체완결 묶음(.claude-plugin + .agents + plugins/<core>/) →
 //         github·복붙으로 이식, 여러 프로젝트가 *가리켜* 쓴다. 프로젝트 값을 본문에 안 박는 게 재사용의 비결:
 //         값-빈자리({이름})도 능력-빈자리({cap:이름})도 박지 않는다 — 둘 다 런타임에 .harness/config.yaml
-//         (values:/bindings:)에서 읽힌다. 소비 프로젝트는 config 만 바꾸면 재빌드 없이 같은 Core 를 쓴다(ARCHITECTURE §2).
+//         (values:/bindings:)에서 읽힌다. 산출물 작업폴더(브랜치)도 안 박는다 — 실행 시 config.feature→git브랜치→default
+//         로 풀린다(아래 슬롯치환). 소비 프로젝트는 config 만 바꾸면 재빌드 없이 같은 Core 를 쓴다(ARCHITECTURE §2).
 //   계약 출처: agent-engineer/references/{contract,phases,recipe}.md, 포맷 출처: ccc-skills·ccc-agents·ccc-hooks·ccc-plugin.
 //             어긋나면 그 SKILL.md/references 가 정답.
 //
@@ -274,11 +275,36 @@ function parsePhase(name) {
 }
 
 // ---------- 슬롯 치환 ----------
-// {role} → 산출물 경로(.harness/artifacts/{feature}/<role>.md, 상대경로 — 컴파일 산출은 프로젝트 루트 기준).
+// {role} → 산출물 경로(.harness/artifacts/<작업폴더>/<role>.md, 상대경로 — 컴파일 산출은 프로젝트 루트 기준).
+//   작업폴더는 빌드 때 박지 않는다 — 값·능력 슬롯과 같은 결로 실행 시 푼다(아래 appendWorkdirNote). 박으면
+//   빌드 시점 브랜치가 굳어 브랜치를 바꿔도 옛 폴더를 가리키고(resume·병렬 깨짐), 커밋된 Core 를 여러
+//   브랜치·프로젝트가 공유할 때 이식성이 깨진다(ARCHITECTURE §2 "실행 시점에 .harness 에서 읽는다" 정합).
 // {next} → recipe 순서상 다음 스킬 (/name) 또는 (종착).
 // {프로젝트값} → config.values 의 값. needs 가 가리키는 키 + 한국어 흔한 별칭.
-function artifactPath(feature, role) {
-  return `.harness/artifacts/${feature}/${role}.md`;
+const WORKDIR = "<작업폴더>"; // 작업 바통 폴더 자리표시 — 실행 시 config.feature→git브랜치→default 로 풀린다.
+function artifactPath(role) {
+  return `.harness/artifacts/${WORKDIR}/${role}.md`;
+}
+// {role}/worker 합본 경로에 남은 <작업폴더> 자리표시를 실행 시점 해석 산문으로 한 번 안내(값·능력 슬롯과 동형).
+//   해석 규칙은 validate 신선도 폴더 결정과 *동치*여야 한다(config.feature → git 브랜치 → default).
+function appendWorkdirNote(body) {
+  if (!body.includes(WORKDIR)) return body;
+  const note =
+    `위 경로의 \`${WORKDIR}\` 는 빌드 때 박지 않는다 — 실행 시 정한다: ` +
+    `\`.harness/config.yaml\` 의 \`feature:\` 값이 있으면 그것, 없으면 현재 git 브랜치 이름(폴더명으로 쓰게 특수문자는 \`-\` 로 바꿔), 둘 다 없으면 \`default\`. ` +
+    `한 작업의 산출물이 모두 이 한 폴더 아래 모인다(브랜치를 바꾸면 그 브랜치 폴더로 따라간다).`;
+  return `${body.replace(/\s+$/, "")}\n\n${note}`;
+}
+
+// requires 에서 특정 kind 빈자리를 Map<키, {optional}> 로 모은다(같은 키가 여러 번이면 하나라도 필수면 필수 —
+//   interface 집계·validate 의 optional 판정과 동치). expandCapabilitySlots/expandValueSlots 가 꼬리 변형(선택↔필수)에 쓴다.
+function requireMeta(requires, kind) {
+  const m = new Map();
+  for (const r of requires) if (r.kind === kind) {
+    const prev = m.get(r.key);
+    m.set(r.key, { optional: prev ? (prev.optional && r.optional) : r.optional });
+  }
+  return m;
 }
 
 // requires 의 값-빈자리 키 → 본문에서 쓰일 법한 표기들(한국어 별칭 포함)을 같은 키로 매핑.
@@ -289,11 +315,12 @@ const VALUE_ALIASES = {
 // {값슬롯} → 런타임-읽기 산문. 능력-빈자리와 같은 결: *결과를 박지 않는다* — 본문이 실행 시
 //   .harness/config.yaml 의 values: 에서 직접 읽어 풀게 만든다(같은 Core 가 프로젝트마다 다른 값으로 동작,
 //   소비자는 재빌드 없이 config 만 고친다 — ARCHITECTURE §2 "실행 시점에 .harness 에서 읽는다" 정합).
-//   valueKeys: 이 phase 의 requires 중 kind:"value" 인 키 집합(needs 흡수분 포함) — 능력의 capKeys 와 동형.
+//   valueMeta: 이 phase 의 값-빈자리 Map<키, {optional}>(needs 흡수분 포함) — 능력의 capMeta 와 동형.
+//   선택(optional) 빈자리는 꼬리를 "멈추지 말고 건너뛴 뒤 명시" 변형으로 emit(본문 '있으면 쓴다'와 정합).
 //   여기 없는 {x} 는 role·next·미선언이라 건드리지 않는다(미선언은 뒤의 미치환 경고가 잡는다 — 선언 강제).
-function expandValueSlots(body, valueKeys, knownRoles) {
+function expandValueSlots(body, valueMeta, knownRoles) {
   const aliasToKey = {};
-  for (const key of valueKeys) {
+  for (const key of valueMeta.keys()) {
     aliasToKey[key] = key;
     for (const alias of VALUE_ALIASES[key] || []) aliasToKey[alias] = key;
   }
@@ -308,11 +335,15 @@ function expandValueSlots(body, valueKeys, knownRoles) {
   });
   if (!used.size) return out;
   // 값별 해석 안내(결정적 산문). 정렬해 멱등 — 능력 안내(expandCapabilitySlots)와 같은 형식.
-  const notes = [...used].sort().map((key) =>
-    `\`${key}\`(값)의 알맹이는 \`.harness/config.yaml\` 의 \`values: ${key}:\` 가 담은 값이다. ` +
-    `지금 그 값을 읽어 그대로 쓰라(명령이면 그대로 실행한다). ` +
-    `못 찾으면 멈추고 "값 없음: ${key}" 라 알린다(값을 추측하지 않는다).`
-  ).join("\n");
+  const notes = [...used].sort().map((key) => {
+    const head =
+      `\`${key}\`(값)의 알맹이는 \`.harness/config.yaml\` 의 \`values: ${key}:\` 가 담은 값이다. ` +
+      `지금 그 값을 읽어 그대로 쓰라(명령이면 그대로 실행한다). `;
+    const tail = valueMeta.get(key).optional
+      ? `이건 선택 빈자리다 — 값이 없으면 멈추지 말고 이 단계를 건너뛴 뒤 산출물에 "미설정: ${key}" 라고 명시한다(값을 추측하지 않는다).`
+      : `못 찾으면 멈추고 "값 없음: ${key}" 라 알린다(값을 추측하지 않는다).`;
+    return head + tail;
+  }).join("\n");
   return `${out.replace(/\s+$/, "")}\n\n${notes}`;
 }
 
@@ -347,25 +378,30 @@ function substituteNext(body, nextName) {
 //   동작: 각 {cap:이름} 인라인을 '`이름`(능력)' 으로 바꾸고, 본문 끝에 *능력별 한 번* 해석 안내 단락을 붙인다.
 //     - 조사 중립: 토큰을 괄호로 끊어('`이름`(능력)') 뒤에 어떤 한국어 조사(로/를/은…)가 붙어도 자연스럽게 읽힌다.
 //       (옛 '**이름** 능력' 은 본문 '{cap:x} 로' 를 '능력 로'(비문)로 만들었다 — insertStrictGateNote 콜론형 선례와 같은 결).
-//     - capKeys: 이 phase 의 requires 중 kind:"capability" 인 이름 집합. 여기 없는 {cap:x} 는 미선언이라
+//     - capMeta: 이 phase 의 능력-빈자리 Map<이름, {optional}>. 여기 없는 {cap:x} 는 미선언이라
 //       치환하지 않고 그대로 둔다(뒤의 미치환 슬롯 경고가 잡는다 — 오타·미선언 능력 탐지).
+//     - 선택(optional) 능력은 꼬리를 "멈추지 말고 건너뛴 뒤 '미바인딩' 명시" 변형으로 emit(본문 '있으면 쓴다'와 정합).
 //   expandValueSlots(값 슬롯) 보다 *먼저* 돌려야 한다 — {cap:..} 의 콜론이 값 슬롯 정규식에 걸리지 않게.
-function expandCapabilitySlots(body, capKeys) {
+function expandCapabilitySlots(body, capMeta) {
   const used = new Set();
   let out = body.replace(/\{cap:([^{}]+)\}/g, (whole, raw) => {
     const cap = raw.trim();
-    if (!capKeys.has(cap)) return whole; // 미선언 능력 슬롯 → 보존(미치환 경고로 잡음).
+    if (!capMeta.has(cap)) return whole; // 미선언 능력 슬롯 → 보존(미치환 경고로 잡음).
     used.add(cap);
     return `\`${cap}\`(능력)`;
   });
   if (!used.size) return out;
   // 능력별 해석 안내(결정적 산문). 정렬해 멱등 — 재컴파일해도 같은 텍스트.
-  const notes = [...used].sort().map((cap) =>
-    `\`${cap}\`(능력)의 구현은 \`.harness/config.yaml\` 의 \`bindings: ${cap}:\` 가 가리키는 값이다. ` +
-    `그 값이 단일 토큰이면 같은 파일 \`impl:\` 아래 그 키가, 명령·경로면 그 자체가 알맹이다. ` +
-    `지금 그 값을 읽어 그대로 실행하라(경로면 그 파일을 열어 따른다). ` +
-    `못 찾으면 멈추고 "바인딩 없음: ${cap}" 라 알린다(값을 추측하지 않는다).`
-  ).join("\n");
+  const notes = [...used].sort().map((cap) => {
+    const head =
+      `\`${cap}\`(능력)의 구현은 \`.harness/config.yaml\` 의 \`bindings: ${cap}:\` 가 가리키는 값이다. ` +
+      `그 값이 단일 토큰이면 같은 파일 \`impl:\` 아래 그 키가, 명령·경로면 그 자체가 알맹이다. ` +
+      `지금 그 값을 읽어 그대로 실행하라(경로면 그 파일을 열어 따른다). `;
+    const tail = capMeta.get(cap).optional
+      ? `이건 선택 빈자리다 — 바인딩이 없으면 멈추지 말고 이 단계를 건너뛴 뒤 산출물에 "미바인딩: ${cap}" 라고 명시한다(값을 추측하지 않는다).`
+      : `못 찾으면 멈추고 "바인딩 없음: ${cap}" 라 알린다(값을 추측하지 않는다).`;
+    return head + tail;
+  }).join("\n");
   return `${out.replace(/\s+$/, "")}\n\n${notes}`;
 }
 
@@ -477,18 +513,8 @@ function wireFallback(filePath, importLine, tool) {
 // ---------- 메인 ----------
 const C = parseConfig(readFileSync(cfgPath, "utf8"));
 
-// feature 결정: config.feature → git 브랜치 슬러그 → default (contract §1).
-function gitBranchSlug() {
-  try {
-    const r = spawnSync("git", ["-C", ROOT, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
-    if (r.status === 0) {
-      const b = (r.stdout || "").trim();
-      if (b && b !== "HEAD") return b.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-    }
-  } catch { /* git 없음 — 폴백 */ }
-  return null;
-}
-const feature = C.scalars.feature || gitBranchSlug() || "default";
+// 작업폴더는 빌드 때 결정하지 않는다 — role 경로에 <작업폴더> 자리표시만 두고 실행 시 푼다(appendWorkdirNote).
+//   그래서 build 는 여기서 git 브랜치를 읽지 않는다(값·능력과 같은 "박지 않는다" 원칙). 신선도 폴더 해석은 validate 몫.
 const sync = C.scalars.sync || "medium";
 
 // Core 이름: config.core(재사용 모드, 가리키는 Core 이름) → config.harness(단독 하네스 하위호환) → basename(ROOT).
@@ -502,7 +528,7 @@ const description = C.scalars.description || `${coreName} Core (AgentOppa 빌드
 const owner = C.scalars.owner || "AgentOppa";
 const displayName = C.scalars.display_name || coreName;
 
-info(`core=${coreName} · feature=${feature} · sync=${sync} · routing=${C.scalars.routing || "(기본)"}`);
+info(`core=${coreName} · 작업폴더=런타임(config.feature→git브랜치→default) · sync=${sync} · routing=${C.scalars.routing || "(기본)"}`);
 
 // phases 펼침 (loop 안 항목도 시퀀스로; loop 의 self-gate 는 do[] 마지막 phase 본문에 emit).
 //   각 loop 항목에 loop 메타를 단다: first(되돌아갈 곳)·last(여기서 until 판정)·until·max·doNames.
@@ -574,20 +600,20 @@ for (const item of seq) {
   // --- 본문 슬롯 치환 (순서 주의) ---
   let body = card.body;
   // (a0) {cap:<능력>} → 런타임-읽기 산문 (값/role/next 치환보다 *먼저* — 콜론이 값 슬롯 정규식에 안 걸리게).
-  //      값 슬롯도 능력 슬롯도 박지 않는다(재사용 비결) — 능력은 여기, 값은 (b)에서 편다. capKeys = 이 phase requires 의 능력 이름.
-  const capKeys = new Set(card.requires.filter((r) => r.kind === "capability").map((r) => r.key));
-  body = expandCapabilitySlots(body, capKeys);
+  //      값 슬롯도 능력 슬롯도 박지 않는다(재사용 비결) — 능력은 여기, 값은 (b)에서 편다. capMeta = 이 phase requires 의 능력(이름→optional).
+  const capMeta = requireMeta(card.requires, "capability");
+  body = expandCapabilitySlots(body, capMeta);
   // (a) {role} → 경로. knownRoles 의 각 역할에 대해 {role} 치환.
   for (const role of knownRoles) {
     const re = new RegExp(`\\{${role.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}`, "g");
-    body = body.replace(re, artifactPath(feature, role));
+    body = body.replace(re, artifactPath(role));
   }
   // (a2) frontmatter 누수 주석 제거: 본문에 새어든 '(produces: ~)' 는 frontmatter 개념이라 컴파일 산출에 두지 않는다.
   //      (컴파일러는 슬롯 치환이 본분이고 산문을 고쳐쓰지 않지만, 이 토큰은 명백한 frontmatter 누수라 슬롯처럼 떼어낸다.)
   body = body.replace(/\s*\(\s*produces:\s*~\s*\)/g, "");
   // (b) {프로젝트값} → 런타임-읽기 산문 (능력과 같은 결 — 값을 박지 않는다). requires 의 값-빈자리만 편다.
-  const valueKeys = new Set(card.requires.filter((r) => r.kind === "value").map((r) => r.key));
-  body = expandValueSlots(body, valueKeys, knownRoles);
+  const valueMeta = requireMeta(card.requires, "value");
+  body = expandValueSlots(body, valueMeta, knownRoles);
   // (c) 산출물 헤더 enrich (status: ready · inputs).
   if (card.produces) body = enrichHeader(body, item.name, consumesRoles);
   // (d) when → self-gate (본문 맨 위).
@@ -597,7 +623,7 @@ for (const item of seq) {
   //     strict 노트보다 *먼저* 삽입 → 둘 다 첫 단락 뒤를 노려서, 나중 삽입이 위로 간다.
   //     순서 결과: line1 → strict 게이트 노트 → workers 블록 → 본문 (게이트 프레이밍이 먼저 읽히게).
   if (card.workers && card.workers.options.length) {
-    const producesPath = card.produces ? artifactPath(feature, card.produces) : null;
+    const producesPath = card.produces ? artifactPath(card.produces) : null;
     const before = body;
     body = insertWorkerBlock(body, card.workers, producesPath);
     const sel = (card.workers.select || "dynamic").toLowerCase();
@@ -613,6 +639,8 @@ for (const item of seq) {
   }
   // (f) {next} → /next | (종착).  ← 맨 마지막(다른 치환이 {next} 를 건드리지 않게).
   body = substituteNext(body, item.next);
+  // (g) 작업폴더 자리표시(<작업폴더>) 런타임 해석 안내 — role 경로·worker 합본 경로가 남긴 자리표시를 끝에 한 번 푼다(값·능력 안내와 동형).
+  body = appendWorkdirNote(body);
 
   // 미치환 슬롯 점검 (오타·미정의 값).
   const leftover = [...body.matchAll(/\{([^{}\n]+)\}/g)].map((m) => m[1].trim());
@@ -859,6 +887,9 @@ ok(`.agentoppa/.agents/plugins/marketplace.json (name='${coreName}', source.path
 // ===== 6. core/validate.mjs 단일소스 emit (.harness/core/ 그대로) =====
 // 정본 = agent-engineer/scripts/validate.mjs. .harness/core/ 로 복사해 자기검사 독립(지난 라이브의 '즉흥 복사' 결정화).
 //   플러그인 트리로 옮기지 않는다 — 검사 대상(.harness/config.yaml)과 같은 Project(.harness/) 영역에 둔다.
+//   프로젝트 고유 검사는 이 정본을 고치지 말고 .harness/project/impl/validate-extra.mjs 에 둔다 — 정본이 실행 끝에
+//   그 파일이 있으면 이어서 돌려 결과를 합친다(훅과 같은 "프로젝트 저작분 1급" 원칙의 검사판). project/ 는 build 가
+//   안 덮으므로 재빌드에도 산다 → 재빌드가 커밋된 회귀 가드를 조용히 지우던 구멍을 막는다.
 console.log(`\n${c.d}core${c.x} validate.mjs 정본 복사 → .harness/core/ (Project 영역)`);
 const canonicalValidate = resolve(__dirname, "..", "skills", "agent-engineer", "scripts", "validate.mjs");
 if (existsSync(canonicalValidate)) {

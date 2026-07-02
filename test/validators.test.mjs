@@ -266,3 +266,53 @@ test("agent-engineer/validate feature 폴백(E2) — feature 미설정도 'defau
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+test("agent-engineer/validate 프로젝트 확장(요청3) — project/impl/validate-extra.mjs 를 이어서 실행·결과 합침", () => {
+  // 정본(재빌드가 덮는 계약검사기)을 고치지 않고, 프로젝트 고유 회귀 가드를 project/impl/validate-extra.mjs 에 둔다.
+  //   정본이 실행 끝에 그 파일을 이어서 돌리고 exit code 를 합친다(있을 때만). project/ 는 build 가 안 덮어 재빌드에도 삶.
+  const work = mkdtempSync(join(tmpdir(), "val-extra-"));
+  try {
+    const cfgPath = writeHarness(work, "harness: x\nphases:\n  - spec\n");
+    const extraPath = join(work, ".harness/project/impl/validate-extra.mjs");
+    mkdirSync(dirname(extraPath), { recursive: true });
+
+    // green — 통과하는 확장 검사: 정본도 통과(0)하고 확장 실행 흔적이 보인다.
+    writeFileSync(extraPath, "console.log('EXTRA_RAN');\nprocess.exit(0);\n");
+    let r = runValidate(cfgPath);
+    assert.equal(r.status, 0, `확장 검사 통과인데 validate 실패\n${r.stdout}${r.stderr}`);
+    assert.ok(/EXTRA_RAN/.test(r.stdout), "정본이 project/impl/validate-extra.mjs 를 실행하지 않음 — 확장점 없음");
+    assert.ok(/project 확장 검사 통과/.test(r.stdout), "확장 검사 통과 보고가 없음");
+
+    // red — 실패하는 확장 검사: 정본도 실패(≠0)로 합쳐진다(프로젝트 회귀 가드가 게이트를 잡게).
+    writeFileSync(extraPath, "console.log('EXTRA_FAIL');\nprocess.exit(1);\n");
+    r = runValidate(cfgPath);
+    assert.notEqual(r.status, 0, "확장 검사가 실패했는데 validate 가 통과함 — 결과가 안 합쳐짐");
+    assert.ok(/project 확장 검사 실패/.test(r.stdout), "확장 검사 실패 보고가 없음");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("ccc-hooks/경로변수(요청7) — CLAUDE_PLUGIN_ROOT 는 양쪽 OK(Codex 별칭), 맨 PLUGIN_ROOT 만 경고", () => {
+  // Codex 공식문서: CLAUDE_PLUGIN_ROOT·CLAUDE_PLUGIN_DATA 를 별칭으로 세팅 → 크로스툴 정답.
+  //   옛 검사기는 CLAUDE_PLUGIN_ROOT 를 비이식으로 오탐했다. 경고 대상은 반대(맨 PLUGIN_ROOT — Claude 안 풀림)여야.
+  const cccHooks = "plugins/agentoppa/skills/ccc-hooks/scripts/validate.mjs";
+  const work = mkdtempSync(join(tmpdir(), "ccch-pathvar-"));
+  const mk = (name, cmd) => {
+    const p = join(work, name);
+    writeFileSync(p, JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: cmd }] }] } }));
+    return p;
+  };
+  try {
+    // A) CLAUDE_PLUGIN_ROOT — Codex 가 별칭으로 받음 → 크로스툴 정답, 오탐 경고 없어야.
+    const a = spawnSync(process.execPath, [abs(cccHooks), mk("a.json", 'node "${CLAUDE_PLUGIN_ROOT}/bin/g.mjs"')], { encoding: "utf8" });
+    assert.ok(/양쪽 동작 가능/.test(a.stdout), "CLAUDE_PLUGIN_ROOT 를 비이식으로 오판 — Codex 별칭 사실 회귀");
+    assert.ok(!/Claude 경로변수/.test(a.stdout), "CLAUDE_PLUGIN_ROOT 에 옛 오탐('Claude 경로변수') 경고가 남음");
+
+    // B) 맨 $PLUGIN_ROOT(Codex 네이티브) — Claude 는 별칭 없어 안 풀림 → 경고해야.
+    const b = spawnSync(process.execPath, [abs(cccHooks), mk("b.json", 'node "$PLUGIN_ROOT/bin/g.mjs"')], { encoding: "utf8" });
+    assert.ok(/맨 PLUGIN_ROOT/.test(b.stdout), "맨 $PLUGIN_ROOT(Claude 안 풀림)를 경고하지 않음");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});

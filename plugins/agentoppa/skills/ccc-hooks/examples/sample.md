@@ -29,13 +29,13 @@
 
 ## 이식성 교보재 — 한 줄이 분기점
 
-`Stop`·`command`는 **공통 10**이라 Codex에서도 그대로 발화한다. 하지만 **`${CLAUDE_PLUGIN_ROOT}`는 Claude 전용**이다. Codex에서 같은 훅을 굴리려면:
+`Stop`·`command`는 **공통 10**이라 Codex에서도 그대로 발화하고, **`${CLAUDE_PLUGIN_ROOT}`도 Codex가 별칭으로 세팅**해 그대로 풀린다(공식문서). 주의할 건 반대쪽:
 
-- Codex 매니페스트(= 어떤 컴포넌트가 있는지 적어 둔 구성 정보 파일)/설정에선 env(= 환경변수) **`$PLUGIN_ROOT`**를 쓰거나,
-- `test-guard.mjs`가 스스로 흡수: `const root = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? process.cwd()`.
+- 크로스툴 명령은 `${CLAUDE_PLUGIN_ROOT}`로 통일하면 끝(Codex 별칭). 굳이 Codex 네이티브 **`$PLUGIN_ROOT`**를 쓰면 Claude가 별칭 안 해 깨지니 분기해야 한다.
+- 스크립트 내부에서 루트가 필요하면 스스로 흡수: `const root = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? process.cwd()`.
 
-→ 검증기를 돌리면 정확히 이 지점을 짚어준다:
-`node ../scripts/validate.mjs ../../../hooks/hooks.json` → `Stop` 공통 ✓ / command ✓ / `${CLAUDE_PLUGIN_ROOT}` Codex 분기 경고 ⚠.
+→ 검증기를 돌리면 이식성을 짚어준다:
+`node ../scripts/validate.mjs ../../../hooks/hooks.json` → `Stop` 공통 ✓ / command ✓ / `${CLAUDE_PLUGIN_ROOT}` 양쪽 OK(별칭) ✓. (맨 `$PLUGIN_ROOT`였다면 Claude 안 풀림 경고 ⚠.)
 
 ## 미니 예제 — 위험 명령 차단 (PreToolUse, deny)
 
@@ -51,5 +51,5 @@
 
 ## 도구별 주의
 
-- `${CLAUDE_PLUGIN_ROOT}`·`updatedInput`(입력수정)은 **Claude 기능**. Codex는 `PLUGIN_ROOT`(env)·deny만.
+- `${CLAUDE_PLUGIN_ROOT}`는 Codex도 별칭 지원(양쪽 OK). 반면 `updatedInput`(입력수정)은 **Claude 전용** — Codex는 deny/allow만.
 - Codex 플러그인 hook은 **신뢰 게이트**가 있다 — 설치·활성화만으론 안 돌고, 사용자가 검토·신뢰해야 발화. ([`../references/cross-tool.md`](../references/cross-tool.md))

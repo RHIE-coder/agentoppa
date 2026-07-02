@@ -20,7 +20,7 @@
 | **핸들러 타입** | command·http·mcp_tool·prompt·agent | **command만 실행**(나머지는 스킵) |
 | **matcher**(= 어느 도구·소스에 훅을 걸지 고르는 패턴) | 리터럴/파이프목록, 특수문자 있으면 정규식(= 문자열 패턴 표기법) | **항상 정규식**(`"^Bash$"`) |
 | **PreToolUse 입력수정** | `updatedInput` 가능 | **불가**(deny/allow만) |
-| **플러그인 경로변수** | `${CLAUDE_PLUGIN_ROOT}` · `${CLAUDE_PROJECT_DIR}` | env **`PLUGIN_ROOT`** · `PLUGIN_DATA` |
+| **플러그인 경로변수** | `${CLAUDE_PLUGIN_ROOT}` · `${CLAUDE_PROJECT_DIR}` | 네이티브 `PLUGIN_ROOT`·`PLUGIN_DATA` — **단 `CLAUDE_PLUGIN_ROOT`·`CLAUDE_PLUGIN_DATA`를 별칭으로 세팅**(호환, 공식문서). 작업폴더는 `cwd`(`CLAUDE_PROJECT_DIR` 별칭은 없음) |
 | **알림 채널** | `Notification` 이벤트 | **`notify`**(별개 채널, argv, `agent-turn-complete`만) |
 | **세션 종료** | `SessionEnd` | 없음(대안: `Stop`) |
 | **플러그인 신뢰** | 활성화하면 동작 | **신뢰 게이트** — 검토·신뢰 전엔 번들 hook 스킵 |
@@ -33,16 +33,16 @@
 |---|---|---|
 | 매니페스트(= 플러그인 구성 정보 파일) | `.claude-plugin/plugin.json` — `hooks/` 자동발견(= 정해진 위치 파일을 알아서 찾아 등록) | `.codex-plugin/plugin.json` |
 | hook 파일 | `hooks/hooks.json` | `hooks/hooks.json` 또는 plugin.json의 `"hooks"` |
-| 경로변수(번들 명령) | `${CLAUDE_PLUGIN_ROOT}/bin/…` | env `$PLUGIN_ROOT/bin/…` |
+| 경로변수(번들 명령) | `${CLAUDE_PLUGIN_ROOT}/bin/…` | `${CLAUDE_PLUGIN_ROOT}` 그대로 OK(별칭) · 네이티브 `$PLUGIN_ROOT/bin/…` |
 | 신뢰 | 자동 | 검토·신뢰 필요 |
 | 마켓플레이스 | `.claude-plugin/marketplace.json` | `.agents/plugins/marketplace.json` |
 
-> AgentOppa 원칙: **컴포넌트(hook 스크립트)는 두 도구 공유, 매니페스트·경로변수만 도구별로.** 스크립트가 `process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? process.env.CLAUDE_PROJECT_DIR`로 루트를 흡수하면 명령 한 줄도 양립.
+> AgentOppa 원칙: **컴포넌트(hook 스크립트)는 두 도구 공유, 명령의 경로변수는 `${CLAUDE_PLUGIN_ROOT}` 한 벌로.** Codex가 이를 별칭으로 받으므로 양쪽에서 풀린다(맨 `$PLUGIN_ROOT`는 Claude가 별칭 안 해 깨짐 — 크로스툴은 `CLAUDE_PLUGIN_ROOT`). 스크립트 내부에서 루트가 필요하면 `process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? process.cwd()`로 흡수.
 
 ## 4. 크로스툴 hook 실무 규칙
 
 1. **공통 10 + command + stdin/exit2/hookSpecificOutput** 안에 머물면 한 벌로 양쪽.
-2. **경로변수는 분기점.** 매니페스트만 도구별로 두거나, 스크립트가 env를 흡수(§3).
+2. **경로변수:** 명령엔 `${CLAUDE_PLUGIN_ROOT}` 한 벌(Codex가 별칭 → 분기 불필요). 맨 `$PLUGIN_ROOT`(Claude 안 풀림)·`CLAUDE_PROJECT_DIR`(Codex 없음, cwd)만 주의 — 필요하면 스크립트가 env 흡수(§3).
 3. **`PreToolUse` 입력수정은 Claude 전용** → 양립하려면 deny/allow만 의존.
 4. **알림·세션종료는 도구별 분기**(`Notification`/`SessionEnd` ↔ `notify`/`Stop`).
 5. **`notify`는 hook이 아니다** — stdin 아닌 argv(= 명령행 인자), 하이픈 필드, 차단 불가, user-level `config.toml`의 테이블 섹션(= `[...]`로 묶는 설정 묶음)보다 **앞**에. 절대 hook과 섞지 말 것.

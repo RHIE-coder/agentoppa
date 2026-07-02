@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Claude_Code_+_Codex-plugin-138A7B" alt="Claude Code + Codex">
   <img src="https://img.shields.io/badge/Windows_·_macOS_·_Linux-supported-1AAE9C" alt="Cross-OS">
-  <img src="https://img.shields.io/badge/version-0.2.3-DFA436" alt="version 0.2.3">
+  <img src="https://img.shields.io/badge/version-0.3.0-DFA436" alt="version 0.3.0">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License">
 </p>
 

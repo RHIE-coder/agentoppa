@@ -29,7 +29,10 @@ function skeleton() {
   const L = [];
   L.push("# " + iface.core + " — 이 프로젝트에 붙인 하네스 설정 (setup 이 깔아 줌)");
   L.push("core: " + iface.core);
-  L.push("phases: [" + phases.join(", ") + "]");
+  // phases 는 블록 목록으로 — parseConfig(build-skills·validate 동치 계약)는 `phases:` 다음 줄의 `- 이름`만 읽는다.
+  //   인라인 배열(`phases: [a, b]`)로 쓰면 스칼라로 먹혀 phases 가 비고 "phases 비어 있음"으로 죽는다(왕복 깨짐).
+  L.push("phases:");
+  for (const p of phases) L.push("  - " + p);
   if (vals.length) {
     L.push("values:");
     for (const v of vals) {
