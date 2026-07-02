@@ -4,7 +4,8 @@
 //   모델(P0 잠금): AgentOppa = Maker(아무것도 안 싣는다). 유저가 자기 Project(.harness/)에서 재사용 Core(.agentoppa/)를
 //         빌드한다. Core = AgentOppa 자신과 동형의 자체완결 묶음(.claude-plugin + .agents + plugins/<core>/) →
 //         github·복붙으로 이식, 여러 프로젝트가 *가리켜* 쓴다. 프로젝트 값을 본문에 안 박는 게 재사용의 비결:
-//         값-빈자리는 컴파일 때 박고, 능력-빈자리({cap:})는 런타임에 .harness/config.yaml 에서 읽는다.
+//         값-빈자리({이름})도 능력-빈자리({cap:이름})도 박지 않는다 — 둘 다 런타임에 .harness/config.yaml
+//         (values:/bindings:)에서 읽힌다. 소비 프로젝트는 config 만 바꾸면 재빌드 없이 같은 Core 를 쓴다(ARCHITECTURE §2).
 //   계약 출처: agent-engineer/references/{contract,phases,recipe}.md, 포맷 출처: ccc-skills·ccc-agents·ccc-hooks·ccc-plugin.
 //             어긋나면 그 SKILL.md/references 가 정답.
 //
@@ -279,28 +280,39 @@ function artifactPath(feature, role) {
   return `.harness/artifacts/${feature}/${role}.md`;
 }
 
-// config.values 키 → 본문에서 쓰일 법한 표기들. needs 키와 한국어 별칭을 같은 값으로 매핑.
+// requires 의 값-빈자리 키 → 본문에서 쓰일 법한 표기들(한국어 별칭 포함)을 같은 키로 매핑.
 const VALUE_ALIASES = {
   test_command: ["test_command", "테스트 명령", "테스트명령", "test command"],
 };
-function buildValueSlots(values) {
-  const slots = {};
-  for (const [key, val] of Object.entries(values)) {
-    slots[key] = val;
-    for (const alias of (VALUE_ALIASES[key] || [])) slots[alias] = val;
-  }
-  return slots;
-}
 
-// 본문에 남은 {프로젝트값} 슬롯을 values 로 치환. role/next 는 따로 처리하므로 제외.
-function substituteValues(body, valueSlots, knownRoles) {
-  return body.replace(/\{([^{}]+)\}/g, (whole, inner) => {
-    const key = inner.trim();
-    // role·next 슬롯은 여기서 건드리지 않는다 (별도 단계가 처리).
-    if (key === "next" || knownRoles.has(key)) return whole;
-    if (key in valueSlots) return valueSlots[key];
-    return whole; // 모르는 슬롯은 보존 → 미치환 경고로 잡는다.
+// {값슬롯} → 런타임-읽기 산문. 능력-빈자리와 같은 결: *결과를 박지 않는다* — 본문이 실행 시
+//   .harness/config.yaml 의 values: 에서 직접 읽어 풀게 만든다(같은 Core 가 프로젝트마다 다른 값으로 동작,
+//   소비자는 재빌드 없이 config 만 고친다 — ARCHITECTURE §2 "실행 시점에 .harness 에서 읽는다" 정합).
+//   valueKeys: 이 phase 의 requires 중 kind:"value" 인 키 집합(needs 흡수분 포함) — 능력의 capKeys 와 동형.
+//   여기 없는 {x} 는 role·next·미선언이라 건드리지 않는다(미선언은 뒤의 미치환 경고가 잡는다 — 선언 강제).
+function expandValueSlots(body, valueKeys, knownRoles) {
+  const aliasToKey = {};
+  for (const key of valueKeys) {
+    aliasToKey[key] = key;
+    for (const alias of VALUE_ALIASES[key] || []) aliasToKey[alias] = key;
+  }
+  const used = new Set();
+  let out = body.replace(/\{([^{}\n]+)\}/g, (whole, raw) => {
+    const tok = raw.trim();
+    if (tok === "next" || knownRoles.has(tok)) return whole; // role·next 는 별도 단계가 처리.
+    const key = aliasToKey[tok];
+    if (!key) return whole; // 미선언 슬롯 → 보존(미치환 경고로 잡음).
+    used.add(key);
+    return `\`${key}\`(값)`;
   });
+  if (!used.size) return out;
+  // 값별 해석 안내(결정적 산문). 정렬해 멱등 — 능력 안내(expandCapabilitySlots)와 같은 형식.
+  const notes = [...used].sort().map((key) =>
+    `\`${key}\`(값)의 알맹이는 \`.harness/config.yaml\` 의 \`values: ${key}:\` 가 담은 값이다. ` +
+    `지금 그 값을 읽어 그대로 쓰라(명령이면 그대로 실행한다). ` +
+    `못 찾으면 멈추고 "값 없음: ${key}" 라 알린다(값을 추측하지 않는다).`
+  ).join("\n");
+  return `${out.replace(/\s+$/, "")}\n\n${notes}`;
 }
 
 // 산출물 헤더 enrich: 본문의 '(헤더 phase: <name> ...)' 를 status: ready · inputs:[...] 까지 채운다.
@@ -336,7 +348,7 @@ function substituteNext(body, nextName) {
 //       (옛 '**이름** 능력' 은 본문 '{cap:x} 로' 를 '능력 로'(비문)로 만들었다 — insertStrictGateNote 콜론형 선례와 같은 결).
 //     - capKeys: 이 phase 의 requires 중 kind:"capability" 인 이름 집합. 여기 없는 {cap:x} 는 미선언이라
 //       치환하지 않고 그대로 둔다(뒤의 미치환 슬롯 경고가 잡는다 — 오타·미선언 능력 탐지).
-//   substituteValues(값 슬롯) 보다 *먼저* 돌려야 한다 — {cap:..} 의 콜론이 값 슬롯 정규식에 걸리지 않게.
+//   expandValueSlots(값 슬롯) 보다 *먼저* 돌려야 한다 — {cap:..} 의 콜론이 값 슬롯 정규식에 걸리지 않게.
 function expandCapabilitySlots(body, capKeys) {
   const used = new Set();
   let out = body.replace(/\{cap:([^{}]+)\}/g, (whole, raw) => {
@@ -473,7 +485,6 @@ function gitBranchSlug() {
 }
 const feature = C.scalars.feature || gitBranchSlug() || "default";
 const sync = C.scalars.sync || "medium";
-const valueSlots = buildValueSlots(C.values);
 
 // Core 이름: config.core(재사용 모드, 가리키는 Core 이름) → config.harness(단독 하네스 하위호환) → basename(ROOT).
 //   이게 Core 묶음 폴더(.agentoppa/plugins/<core>/)·매니페스트 name 이 된다 (kebab-case 강제 — recipe.md §9).
@@ -558,7 +569,7 @@ for (const item of seq) {
   // --- 본문 슬롯 치환 (순서 주의) ---
   let body = card.body;
   // (a0) {cap:<능력>} → 런타임-읽기 산문 (값/role/next 치환보다 *먼저* — 콜론이 값 슬롯 정규식에 안 걸리게).
-  //      값 슬롯은 박지만 능력 슬롯은 박지 않는다(재사용 비결). capKeys = 이 phase requires 의 능력 이름.
+  //      값 슬롯도 능력 슬롯도 박지 않는다(재사용 비결) — 능력은 여기, 값은 (b)에서 편다. capKeys = 이 phase requires 의 능력 이름.
   const capKeys = new Set(card.requires.filter((r) => r.kind === "capability").map((r) => r.key));
   body = expandCapabilitySlots(body, capKeys);
   // (a) {role} → 경로. knownRoles 의 각 역할에 대해 {role} 치환.
@@ -569,8 +580,9 @@ for (const item of seq) {
   // (a2) frontmatter 누수 주석 제거: 본문에 새어든 '(produces: ~)' 는 frontmatter 개념이라 컴파일 산출에 두지 않는다.
   //      (컴파일러는 슬롯 치환이 본분이고 산문을 고쳐쓰지 않지만, 이 토큰은 명백한 frontmatter 누수라 슬롯처럼 떼어낸다.)
   body = body.replace(/\s*\(\s*produces:\s*~\s*\)/g, "");
-  // (b) {프로젝트값} → values (role/next 제외).
-  body = substituteValues(body, valueSlots, knownRoles);
+  // (b) {프로젝트값} → 런타임-읽기 산문 (능력과 같은 결 — 값을 박지 않는다). requires 의 값-빈자리만 편다.
+  const valueKeys = new Set(card.requires.filter((r) => r.kind === "value").map((r) => r.key));
+  body = expandValueSlots(body, valueKeys, knownRoles);
   // (c) 산출물 헤더 enrich (status: ready · inputs).
   if (card.produces) body = enrichHeader(body, item.name, consumesRoles);
   // (d) when → self-gate (본문 맨 위).
@@ -633,8 +645,8 @@ for (const item of seq) {
 // ===== 1b. Core 인터페이스 명세 + setup 스킬 (소비 프로젝트가 AgentOppa 없이 .harness 를 자급) =====
 // 왜: 빌드된 Core(플러그인)가 *스스로* 소비 프로젝트의 .harness/config.yaml 을 깐다 → 프로젝트B는 AgentOppa 불필요.
 //   interface.json = 이 Core 가 선언한 빈자리(능력·값) + 단계 목록. scaffold.mjs 가 읽어 골격을 쓰고, setup 스킬이
-//   에이전트에게 "프로젝트를 살펴 bindings 를 채워라" 지시. 능력-빈자리(bindings)는 런타임에 읽히므로 소비자가
-//   채우면 그대로 동작(값-빈자리 values 는 빌드 때 저자 값이 박힘). = "복사 말고 가리켜 재사용"의 소비자 자급.
+//   에이전트에게 "프로젝트를 살펴 values·bindings 를 채워라" 지시. 값-빈자리(values)도 능력-빈자리(bindings)도
+//   런타임에 읽히므로 소비자가 채우면 그대로 동작. = "복사 말고 가리켜 재사용"의 소비자 자급.
 console.log(`\n${c.d}interface${c.x} .agentoppa/plugins/${coreName}/ — 빈자리 명세 + setup 스킬 (소비자 자체 스캐폴딩)`);
 
 // 단계 순서(유니크) + 빈자리 집계(values vs capabilities) — cards 의 requires 에서.
@@ -915,8 +927,8 @@ function CORE_README(core, source, desc) {
 >
 > 이 폴더는 **재사용 Core**다 — 워크플로우(단계 흐름·게이트) + 범용 스킬 + 훅 + 인터페이스(빈자리)를 자체완결로 담는다.
 > AgentOppa(Maker)가 이 프로젝트의 \`.harness/\`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
-> 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리는 빌드 때 박히고, 능력-빈자리(\`{cap:}\`)는
-> 실행 시 \`.harness/config.yaml\`의 \`bindings\`/\`impl\`에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
+> 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리도 능력-빈자리(\`{cap:}\`)도 실행 시
+> \`.harness/config.yaml\`(\`values:\` / \`bindings:\`·\`impl:\`)에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
 
 ## 폴더 구조
 
@@ -951,7 +963,7 @@ function CORE_README(core, source, desc) {
 node "\${CLAUDE_PLUGIN_ROOT}/skills/setup/scaffold.mjs"
 \`\`\`
 
-→ \`.harness/config.yaml\` 골격을 만들고 채울 능력 빈자리(\`bindings\`)를 알려 준다. 그 자리를 이 프로젝트 구현으로 채우면(예: \`test-runner: "npx playwright test"\`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
+→ \`.harness/config.yaml\` 골격을 만들고 채울 빈자리 — 값(\`values\`)과 능력(\`bindings\`) — 을 알려 준다. 그 자리를 이 프로젝트 것으로 채우면(예: \`test_command: "npm test"\` · \`test-runner: "npx playwright test"\`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
 
 ## Fallback — 플러그인 없이 떠도 행동 가드 생존
 

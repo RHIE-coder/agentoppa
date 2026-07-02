@@ -1,5 +1,5 @@
 # 골든 테스트용 Project 입력. 두 가지 빈자리를 한 fixture 에 담아 새 모델을 다 짚는다:
-#   - 값-빈자리(test_command): 컴파일 때 본문에 *박힘*.
+#   - 값-빈자리(test_command): *박지 않고* 런타임에 values: 를 읽으라는 산문으로 펼쳐짐.
 #   - 능력-빈자리(test-runner): bindings→impl 로 풀리지만 *박지 않고* 런타임-읽기 산문으로 펼쳐짐(= 재사용 비결).
 # core 이름은 harness: demo (config.core 미지정 시 하위호환 키).
 harness: demo

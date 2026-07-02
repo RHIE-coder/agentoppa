@@ -4,8 +4,8 @@
 >
 > 이 폴더는 **재사용 Core**다 — 워크플로우(단계 흐름·게이트) + 범용 스킬 + 훅 + 인터페이스(빈자리)를 자체완결로 담는다.
 > AgentOppa(Maker)가 이 프로젝트의 `.harness/`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
-> 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리는 빌드 때 박히고, 능력-빈자리(`{cap:}`)는
-> 실행 시 `.harness/config.yaml`의 `bindings`/`impl`에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
+> 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리도 능력-빈자리(`{cap:}`)도 실행 시
+> `.harness/config.yaml`(`values:` / `bindings:`·`impl:`)에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
 
 ## 폴더 구조
 
@@ -40,7 +40,7 @@
 node "${CLAUDE_PLUGIN_ROOT}/skills/setup/scaffold.mjs"
 ```
 
-→ `.harness/config.yaml` 골격을 만들고 채울 능력 빈자리(`bindings`)를 알려 준다. 그 자리를 이 프로젝트 구현으로 채우면(예: `test-runner: "npx playwright test"`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
+→ `.harness/config.yaml` 골격을 만들고 채울 빈자리 — 값(`values`)과 능력(`bindings`) — 을 알려 준다. 그 자리를 이 프로젝트 것으로 채우면(예: `test_command: "npm test"` · `test-runner: "npx playwright test"`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
 
 ## Fallback — 플러그인 없이 떠도 행동 가드 생존
 

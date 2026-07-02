@@ -229,6 +229,8 @@ for (const name of seq) {
   // requires 점검 — 값-빈자리는 config.values, 능력-빈자리는 config.bindings(+impl) 가 채워야 한다.
   //   (needs 흡수분 포함. 선택(?) 빈자리는 미충족이어도 통과 — 본문이 '있으면 쓴다'.)
   for (const rq of card.requires) {
+    // 선택 빈자리도 '사용 중'으로 먼저 표시 — 안 하면 아래 orphan 바인딩 warn 이 실사용 선택 능력을 오탐한다.
+    boundCaps.add(rq.key);
     if (rq.optional) continue;
     if (rq.kind === "value") {
       if (!(rq.key in C.values)) err(`'${name}'의 값-빈자리 '${rq.key}'가 config.values 에 없음`);
@@ -243,7 +245,6 @@ for (const name of seq) {
         // 우변이 명령("npx ...")·경로("./project/impl/..")면 인라인으로 보고 통과.
       }
     }
-    boundCaps.add(rq.key);
   }
 }
 for (const role of produced) if (!consumed.has(role)) warn(`orphan 산출물: '${role}' (${producedBy[role]}) — 아무도 소비 안 함 (종착이면 무시)`);

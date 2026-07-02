@@ -74,7 +74,7 @@ config의 각 단계 정의를 읽어(ⓐ면 `.agentoppa/` Core 묶음의 단계
 | `gate` + `sync=strict` | 게이트 훅 | [ccc-hooks](../ccc-hooks/SKILL.md) |
 | `produces` | 산출물 문서(헤더) | [ccc-memory](../ccc-memory/SKILL.md) |
 
-본문 슬롯 채움: `{역할}`(contract)·`{next}`(recipe 순서)·`{프로젝트값}`(config.values·면담, 값-빈자리=조립 때 박힘). **능력-빈자리 `{cap:<능력>}`는 박지 않는다** — "런타임에 `config.yaml`의 `bindings`/`impl`을 읽어 실행하라"는 결정적 산문으로 펼친다(같은 Core를 다른 구현으로 재사용). `when`은 본문 맨 위 self-gate(= 스킬이 스스로 조건을 보고 건너뛸지 판단하는 자가 점검)로. 빌드 자동화는 `plugins/agentoppa/bin/build-skills.mjs`(슬롯 치환·Codex·게이트훅·loop/dynamic-workers self-gate·멱등).
+본문 슬롯 채움: `{역할}`(contract)·`{next}`(recipe 순서). **값-빈자리 `{프로젝트값}`도 능력-빈자리 `{cap:<능력>}`도 박지 않는다** — "런타임에 `config.yaml`의 `values` / `bindings`·`impl`을 읽어 쓰라"는 결정적 산문으로 펼친다(같은 Core를 재빌드 없이 다른 값·구현으로 재사용). `when`은 본문 맨 위 self-gate(= 스킬이 스스로 조건을 보고 건너뛸지 판단하는 자가 점검)로. 빌드 자동화는 `plugins/agentoppa/bin/build-skills.mjs`(슬롯 치환·Codex·게이트훅·loop/dynamic-workers self-gate·멱등).
 
 ### 4. 포장 — 양쪽 도구로
 조립된 스킬·에이전트·훅을 한 트리(공유 컴포넌트) + 두 매니페스트(= 어떤 플러그인·컴포넌트가 있는지 적어 둔 구성 정보 파일)(+ 루트 마켓 2개)로 싣는다 → [ccc-plugin](../ccc-plugin/SKILL.md) (포인터·마켓 동기화). ⓐ면 `.agentoppa/plugins/<core>/` 묶음으로(이식 가능한 Core), 단독이면 `.harness/`를 읽어 `plugins/<harness>/`로 빌드. 컴포넌트는 한 트리 공유, 도구별로 갈리는 건 매니페스트·마켓뿐. 도구가 읽는 `.claude`/`.codex`는 그 묶음을 **가리키는 얇은 포인터**(사본 아님).
