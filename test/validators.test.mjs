@@ -8,6 +8,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const abs = (p) => join(repoRoot, p);
@@ -205,4 +207,62 @@ test("check-parseconfig-parity 자기점검 — build-skills ↔ validate parseC
     0,
     `build-skills 와 validate 의 parseConfig 동작이 갈림(drift) — clean/splitList/파서를 맞출 것\n${r.stdout}`,
   );
+});
+
+// --- 골격 결함 픽스 회귀 가드 (E) — 신선도 lock 쓰기 + feature 폴백 parity ---
+//   왜: contract §3 은 "통과 시 lock 갱신"이라 약속하지만 validate 는 읽기만 했고(약속 vs 구현),
+//        feature 미설정이면 build 는 브랜치/‘default’ 폴더에 산출물을 적는데 validate 는 config.feature 만 봐
+//        신선도 점검을 통째로 건너뛰었다(해석 갈림). 둘 다 여기서 잡는다.
+const validateMjs = "plugins/agentoppa/skills/agent-engineer/scripts/validate.mjs";
+function writeHarness(root, cfg, artifacts) {
+  const h = join(root, ".harness");
+  mkdirSync(join(h, "project", "phases"), { recursive: true });
+  writeFileSync(join(h, "config.yaml"), cfg);
+  writeFileSync(join(h, "project", "phases", "spec.md"), "---\nname: spec\ndesc: 명세.\nconsumes: ~\nproduces: spec\n---\n본문.\n");
+  for (const [rel, body] of Object.entries(artifacts || {})) {
+    const p = join(h, "artifacts", rel);
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, body);
+  }
+  return join(h, "config.yaml");
+}
+const runValidate = (cfgPath) => spawnSync(process.execPath, [abs(validateMjs), cfgPath], { encoding: "utf8" });
+
+test("agent-engineer/validate 신선도(E1) — lock 없으면 초기화, 안 바뀌면 갱신, 바뀌면 stale", () => {
+  const work = mkdtempSync(join(tmpdir(), "val-fresh-"));
+  try {
+    const cfgPath = writeHarness(work, "harness: x\nfeature: fixt\nphases:\n  - spec\n", { "fixt/spec.md": "명세 v1\n" });
+    const lockPath = join(work, ".harness/artifacts/fixt/lock.json");
+
+    // 1) lock 없음 → 초기화(예전엔 '생략' 하고 아무것도 안 씀).
+    let r = runValidate(cfgPath);
+    assert.equal(r.status, 0, `validate 실패\n${r.stdout}${r.stderr}`);
+    assert.ok(/lock 초기화/.test(r.stdout), "lock 부재 시 초기화 안 함 — 약속(§3) vs 구현 회귀");
+    assert.ok(existsSync(lockPath), "lock.json 미생성 — validate 가 지문을 안 씀");
+    assert.ok(JSON.parse(readFileSync(lockPath, "utf8")).spec, "lock 에 'spec' 지문 없음");
+
+    // 2) 재실행: 안 바뀌었으면 통과·갱신.
+    r = runValidate(cfgPath);
+    assert.ok(/신선도 OK/.test(r.stdout), "안 바뀐 산출물인데 신선도 OK 아님");
+
+    // 3) 산출물 변경 → stale 감지.
+    writeFileSync(join(work, ".harness/artifacts/fixt/spec.md"), "명세 v2 (내용 바뀜)\n");
+    r = runValidate(cfgPath);
+    assert.ok(/stale: 'spec'/.test(r.stdout), "산출물이 바뀌었는데 stale 못 잡음");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("agent-engineer/validate feature 폴백(E2) — feature 미설정도 'default'로 신선도에 걸림(build-skills 동치)", () => {
+  // tmpdir 은 git repo 밖이라 gitBranchSlug()=null → feat='default'. (예전엔 feature 없으면 신선도 통째 skip.)
+  const work = mkdtempSync(join(tmpdir(), "val-featfallback-"));
+  try {
+    const cfgPath = writeHarness(work, "harness: x\nphases:\n  - spec\n", { "default/spec.md": "명세\n" }); // feature: 없음
+    const r = runValidate(cfgPath);
+    assert.equal(r.status, 0, `validate 실패\n${r.stdout}${r.stderr}`);
+    assert.ok(/lock 초기화/.test(r.stdout), "feature 미설정 시 'default' 폴백으로 신선도에 못 걸림 — build↔validate 해석 갈림 회귀");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 });

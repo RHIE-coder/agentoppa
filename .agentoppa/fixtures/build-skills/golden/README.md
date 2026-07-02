@@ -18,9 +18,10 @@
     ├── .codex-plugin/plugin.json      # Codex 메타 + 컴포넌트 포인터
     ├── skills/<phase>/SKILL.md         # 워크플로우 단계 스킬
     ├── skills/setup/                   # 셋업 스킬 + scaffold.mjs (소비 프로젝트 .harness 자급)
+    ├── phases/<name>.md                # 단계 소스(슬롯 미치환 — core: 로 가리켜 재사용하는 단일본)
     ├── interface.json                  # 이 Core 가 선언한 빈자리 명세 (setup 이 읽음)
     ├── agents/<name>.md (+.toml)       # 보조 에이전트 (있으면)
-    ├── hooks/hooks.json (+.mjs)        # strict 게이트 훅 (있으면)
+    ├── hooks/hooks.json (+.mjs)        # 훅 (project/hooks/ 저작분 그대로, 없으면 기본 게이트 — 있으면)
     └── always-on.md                    # 행동 규칙 (루트 CLAUDE.md/AGENTS.md 가 import)
 ```
 
@@ -28,7 +29,7 @@
 
 도구가 읽는 `.claude`/`.codex`는 이 Core의 *사본이 아니라 얇은 포인터*다. 아래 중 하나로 이 Core를 물린다:
 
-- **Claude (그때그때):** `claude --plugin-dir ./plugins/demo`
+- **Claude (그때그때):** `claude --plugin-dir ./.agentoppa/plugins/demo`
 - **Claude (커밋해 항상):** `.claude/settings.json`에 이 마켓/플러그인을 등록(프로젝트에 커밋 → 팀 공유).
 - **Codex:** 루트 `.agents/plugins/marketplace.json`을 자동 감지 → `installation: AVAILABLE`이라 설치 후 사용.
 

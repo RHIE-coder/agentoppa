@@ -3,9 +3,10 @@
 // 사용법: node validate.mjs [path/to/.harness/config.yaml]   (기본: .harness/config.yaml)
 // 종료코드: 오류 0건이면 0, 있으면 1, config 없으면 2.
 // 셸·외부 의존 없음(Node 빌트인만) → mac·linux·windows 동일.
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 
 const c = { r: "\x1b[31m", y: "\x1b[33m", g: "\x1b[32m", d: "\x1b[2m", x: "\x1b[0m" };
 let errors = 0, warns = 0;
@@ -269,25 +270,46 @@ for (const cap of boundCaps) {
 if (errors === 0) ok("연결 OK (dangling·중복·requires 빈자리 없음)");
 
 // --- 신선도 (산출물 있을 때만, contract §3) ---
-const feat = C.scalars.feature;
-if (feat) {
+// feature 해석은 build-skills.mjs 와 *동치*여야 한다({feature} 슬롯이 그 경로로 산출물을 적으므로).
+//   config.feature → git 브랜치 슬러그 → "default". (예전엔 config.feature 만 봐서, feature 미설정 시
+//   build 는 브랜치 폴더에 산출물을 적는데 validate 는 딴 데를 봐 신선도 점검을 통째로 건너뛰었다 — 그 갈림을 없앤다.)
+const feat = C.scalars.feature || gitBranchSlug(harnessDir ? resolve(harnessDir, "..") : ".") || "default";
+{
   const fdir = join(harnessDir, "artifacts", feat);
   if (existsSync(fdir)) {
     const lockPath = join(fdir, "lock.json");
     let lock = null;
     if (existsSync(lockPath)) { try { lock = JSON.parse(readFileSync(lockPath, "utf8")); } catch { warn("lock.json 파싱 실패"); } }
-    if (!lock) warn(`lock 없음: ${lockPath} (신선도 점검 생략)`);
-    else {
+    // 현재 산출물(.md) 지문 스냅샷.
+    const cur = {};
+    for (const f of readdirSync(fdir)) {
+      if (!f.endsWith(".md")) continue;
+      cur[f.replace(/\.md$/, "")] = createHash("sha256").update(readFileSync(join(fdir, f))).digest("hex").slice(0, 6);
+    }
+    if (!lock) {
+      // 첫 점검: lock 이 없으면 현재 지문으로 초기화 → 다음 실행부터 stale 을 잡는다(contract §3 "통과 시 lock 갱신"의 최초 형태).
+      writeFileSync(lockPath, JSON.stringify(cur, null, 2) + "\n");
+      ok(`lock 초기화: ${Object.keys(cur).length}개 역할 지문 기록`);
+    } else {
       let stale = 0;
-      for (const f of readdirSync(fdir)) {
-        if (!f.endsWith(".md")) continue;
-        const role = f.replace(/\.md$/, "");
-        const dig = createHash("sha256").update(readFileSync(join(fdir, f))).digest("hex").slice(0, 6);
+      for (const [role, dig] of Object.entries(cur))
         if (lock[role] && lock[role] !== dig) { warn(`stale: '${role}' (지문 ${lock[role]}→${dig})`); stale++; }
-      }
-      if (!stale) ok("신선도 OK (lock 일치)");
+      // 통과(바뀐 산출물 없음) 시 lock 갱신 — 새 역할 흡수 + 재점검 준비(contract §3). stale 이 있으면 그대로 둬 다음에도 잡히게 한다.
+      if (!stale) { writeFileSync(lockPath, JSON.stringify(cur, null, 2) + "\n"); ok("신선도 OK (lock 일치·갱신)"); }
     }
   }
+}
+
+// git 브랜치 슬러그 (build-skills.mjs 의 gitBranchSlug 와 동치 — feature 폴백에 쓴다).
+function gitBranchSlug(root) {
+  try {
+    const r = spawnSync("git", ["-C", root, "rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
+    if (r.status === 0) {
+      const b = (r.stdout || "").trim();
+      if (b && b !== "HEAD") return b.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+    }
+  } catch { /* git 없음 — 폴백 */ }
+  return null;
 }
 
 console.log(`result: ${errors} error(s), ${warns} warning(s)`);
