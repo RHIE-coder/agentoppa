@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// intent-interview validator — .harness/intent.md(의도 브리프)를 핸드오프 계약으로 점검.
-// 사용법: node validate.mjs [path/to/intent.md]   (기본: .harness/intent.md)
-// 종료코드: 오류 0건이면 0, 있으면 1, 파일 없으면 2.
+// intent-interview validator — .harness/<하네스이름>/intent.md(의도 브리프)를 핸드오프 계약으로 점검.
+// 사용법: node validate.mjs [path/to/intent.md]
+//   인자를 주면 그 경로를 그대로 본다. 없으면 활성 하네스로 .harness/<이름>/intent.md 를 찾는다.
+//   활성 하네스 = 환경변수 HARNESS_MAIN 이 있으면 그 값, 없으면 루트 .harness-main 파일의 첫 비주석 줄.
+// 종료코드: 오류 0건이면 0, 있으면 1, 파일 없음/활성 하네스 못 정함이면 2.
 // 셸·외부 의존 없음(Node 빌트인만) → mac·linux·windows 동일 동작.
 import { readFileSync, existsSync } from "node:fs";
 
@@ -11,7 +13,30 @@ const err = (m) => { console.log(`  ${c.r}✗${c.x} ${m}`); errors++; };
 const warn = (m) => { console.log(`  ${c.y}⚠${c.x} ${m}`); warns++; };
 const ok = (m) => { console.log(`  ${c.g}✓${c.x} ${m}`); };
 
-const file = process.argv[2] ?? ".harness/intent.md";
+// 활성 하네스 이름: 환경변수 HARNESS_MAIN 우선, 없으면 루트 .harness-main 첫 비주석·비빈 줄.
+function activeHarness() {
+  const env = (process.env.HARNESS_MAIN ?? "").trim();
+  if (env) return env;
+  if (existsSync(".harness-main")) {
+    for (const line of readFileSync(".harness-main", "utf8").split(/\r?\n/)) {
+      const t = line.trim();
+      if (t && !t.startsWith("#")) return t;
+    }
+  }
+  return "";
+}
+
+// 인자를 주면 그대로, 없으면 활성 하네스로 .harness/<이름>/intent.md.
+let file = process.argv[2];
+if (!file) {
+  const name = activeHarness();
+  if (!name) {
+    console.log("사용법: node validate.mjs [path/to/intent.md]");
+    console.log("  인자 없이 쓰려면 활성 하네스가 필요하다 — 환경변수 HARNESS_MAIN 또는 루트 .harness-main 파일(첫 비주석 줄)에 하네스 이름을 둔다.");
+    process.exit(2);
+  }
+  file = `.harness/${name}/intent.md`;
+}
 console.log(`intent-interview validate → ${file}`);
 if (!existsSync(file)) { err("intent.md 없음"); process.exit(2); }
 

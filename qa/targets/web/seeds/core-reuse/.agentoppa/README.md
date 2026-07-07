@@ -3,9 +3,9 @@
 > demo-core Core (AgentOppa 빌드).
 >
 > 이 폴더는 **재사용 Core**다 — 워크플로우(단계 흐름·게이트) + 범용 스킬 + 훅 + 인터페이스(빈자리)를 자체완결로 담는다.
-> AgentOppa(Maker)가 이 프로젝트의 `.harness/`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
+> AgentOppa(Maker)가 이 프로젝트의 `.harness/demo-core/`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
 > 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리는 빌드 때 박히고, 능력-빈자리(`{cap:}`)는
-> 실행 시 `.harness/config.yaml`의 `bindings`/`impl`에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
+> 실행 시 `.harness/demo-core/config.yaml`의 `bindings`/`impl`에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
 
 ## 폴더 구조
 
@@ -38,8 +38,8 @@
 ## 배포 옵션
 
 - **이식:** 이 `.agentoppa/` 폴더는 자체완결이라 통째로 다른 repo에 복사하거나 github에 올려 여러 프로젝트가 가리킬 수 있다.
-- **재빌드:** `.harness/`(의도·값·바인딩)를 고친 뒤 `node <agentoppa>/plugins/agentoppa/bin/build-skills.mjs <project-root>`로 다시 빌드(멱등 — 같은 입력→같은 산출).
+- **재빌드:** `.harness/demo-core/`(의도·값·바인딩)를 고친 뒤 `node <agentoppa>/plugins/agentoppa/bin/build-skills.mjs <project-root> demo-core`로 다시 빌드(멱등 — 같은 입력→같은 산출).
 
 ---
 
-*손으로 고치지 마라 — 이 폴더는 `.harness/`에서 결정적으로 빌드된 산출물이다. 바꿀 게 있으면 `.harness/`를 고치고 재빌드한다.*
+*손으로 고치지 마라 — 이 폴더는 `.harness/demo-core/`에서 결정적으로 빌드된 산출물이다. 바꿀 게 있으면 `.harness/demo-core/`를 고치고 재빌드한다.*

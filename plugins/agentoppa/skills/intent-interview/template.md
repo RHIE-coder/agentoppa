@@ -1,6 +1,6 @@
 # template.md — 빈 의도 정리 골격 (복사용)
 
-아래 코드블록을 `.harness/intent.md`로 복사해 `<…>`를 채운다. 채운 뒤 안내는 지운다. 양식·연결 규칙은 [references/handoff.md](references/handoff.md), 채우는 방법은 [references/method.md](references/method.md). 면담 수준([SKILL.md](SKILL.md) "면담 수준 고르기")에 따라 `level`과 *맨 아래 힌트 섹션 하나*를 고른다 — 나머지 섹션은 공통.
+아래 코드블록을 `.harness/<하네스이름>/intent.md`로 복사해 `<…>`를 채운다. 채운 뒤 안내는 지운다. 양식·연결 규칙은 [references/handoff.md](references/handoff.md), 채우는 방법은 [references/method.md](references/method.md). 면담 수준([SKILL.md](SKILL.md) "면담 수준 고르기")에 따라 `level`과 *맨 아래 힌트 섹션 하나*를 고른다 — 나머지 섹션은 공통.
 
 ````markdown
 ---

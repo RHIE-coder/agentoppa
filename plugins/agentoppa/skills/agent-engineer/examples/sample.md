@@ -1,6 +1,6 @@
 # examples/sample.md — 한 Core, 두 프로젝트 (다른 구현)
 
-재사용의 비결을 한눈에: **같은 Core `dev-flow`(spec→tdd→e2e→review · tdd = 테스트를 먼저 쓰고 그에 맞춰 구현하는 방식, e2e = 처음부터 끝까지 전체 흐름을 돌려보는 테스트)** 를 두 프로젝트가 가리켜 쓰는데, 다른 건 각자 `.harness/config.yaml`의 `bindings` **한두 줄**뿐이다. Core 단계 소스는 양쪽이 **글자 그대로 똑같다** — 값을 안 박았으니까.
+재사용의 비결을 한눈에: **같은 Core `dev-flow`(spec→tdd→e2e→review · tdd = 테스트를 먼저 쓰고 그에 맞춰 구현하는 방식, e2e = 처음부터 끝까지 전체 흐름을 돌려보는 테스트)** 를 두 프로젝트가 가리켜 쓰는데, 다른 건 각자 `.harness/dev-flow/config.yaml`의 `bindings` **한두 줄**뿐이다. Core 단계 소스는 양쪽이 **글자 그대로 똑같다** — 값을 안 박았으니까.
 
 ## 0. 면담 (요약 — 두 모드)
 
@@ -33,7 +33,7 @@ tier: standard
 산출 {e2e} (헤더 phase: e2e). → {next}
 ```
 
-## 2. 두 프로젝트의 `.harness/config.yaml` (여기만 다르다)
+## 2. 두 프로젝트의 `.harness/dev-flow/config.yaml` (여기만 다르다)
 
 ### 프로젝트 A — 웹앱
 
@@ -73,7 +73,7 @@ impl:
   compose-e2e: ./project/impl/compose-e2e.md   # 띄우고-기다리고-끄는 절차 모듈
 ```
 
-> **포인트:** Core 한 벌, 바뀐 건 `test_command`(npm↔go)와 `e2e-runner`(playwright↔compose) 바인딩뿐. A는 한 줄이라 인라인, B는 여러 줄 절차라 모듈로(`.harness/project/impl/`). 능력 이름은 같고 *구현만* 주입이 갈린다 = 재사용.
+> **포인트:** Core 한 벌, 바뀐 건 `test_command`(npm↔go)와 `e2e-runner`(playwright↔compose) 바인딩뿐. A는 한 줄이라 인라인, B는 여러 줄 절차라 모듈로(`.harness/dev-flow/project/impl/`). 능력 이름은 같고 *구현만* 주입이 갈린다 = 재사용.
 
 ## 3. 같은 단계가 두 결과로 빌드된다 (능력은 안 박음)
 
@@ -84,10 +84,10 @@ impl:
 ```markdown
 ... npm test 로 단위부터 통과시킨다.
 그다음 **e2e-runner** 능력으로 실제 흐름을 돌려 통과를 확인한다.
-  └ 이 능력의 구현은 `.harness/config.yaml` 의 `bindings: e2e-runner:` 가 가리키는 값이고,
+  └ 이 능력의 구현은 `.harness/dev-flow/config.yaml` 의 `bindings: e2e-runner:` 가 가리키는 값이고,
     단일 토큰이면 같은 파일 `impl:` 아래 그 키가, 명령·경로면 그 자체가 알맹이다.
     지금 그 값을 읽어 그대로 실행하라. 못 찾으면 멈추고 "바인딩 없음: e2e-runner" 라 알린다.
-산출 .harness/artifacts/login-oauth/e2e.md (헤더 phase: e2e, status: ready, inputs: [spec]). → /review
+산출 .harness/dev-flow/artifacts/login-oauth/e2e.md (헤더 phase: e2e, status: ready, inputs: [spec]). → /review
 ```
 
 → A가 읽으면 `bindings`에서 `npx playwright test`를, B가 읽으면 `impl.compose-e2e` 절차 모듈을 푼다. **본문은 똑같다.** (값-빈자리만 다른 경로로 박혔다 — `npm test` ↔ `go test ./...`.)
@@ -101,12 +101,12 @@ impl:
 /review → (코드 diff + spec.md + e2e.md) → review.md   (sync=strict)
 ```
 
-역할→경로의 `{feature}`만 갈린다: A는 `.harness/artifacts/login-oauth/`, B는 `.harness/artifacts/settle-batch/`. git-committed라 어느 도구·세션에서 열어도 같은 바통(resume = 끊긴 작업을 중간부터 다시 잇기).
+역할→경로의 `{feature}`만 갈린다: A는 `.harness/dev-flow/artifacts/login-oauth/`, B는 `.harness/dev-flow/artifacts/settle-batch/`. git-committed라 어느 도구·세션에서 열어도 같은 바통(resume = 끊긴 작업을 중간부터 다시 잇기).
 
 ## 5. 검사 (두 계약 한 번에)
 
 ```bash
-node .harness/core/validate.mjs
+node .harness/dev-flow/core/validate.mjs
 ```
 
 - **산출물 계약** — 연결(spec→e2e→review)·신선도(lock)·strict 게이트(review).
@@ -116,4 +116,4 @@ node .harness/core/validate.mjs
 
 ---
 
-**핵심:** Core(`.agentoppa/`)는 *흐름·게이트·빈자리*만 들고 값을 안 박는다. Project(`.harness/`)는 그 빈자리를 이 프로젝트 구현으로 채운다. 그래서 **같은 Core를 npm-웹과 go-서비스가 `config.yaml` 한두 줄 차이로** 공유한다. 다른 흐름이 필요하면 Core의 단계를, 다른 도구면 `bindings`를 바꾼다.
+**핵심:** Core(`.agentoppa/`)는 *흐름·게이트·빈자리*만 들고 값을 안 박는다. Project(`.harness/dev-flow/`)는 그 빈자리를 이 프로젝트 구현으로 채운다. 그래서 **같은 Core를 npm-웹과 go-서비스가 `config.yaml` 한두 줄 차이로** 공유한다. 다른 흐름이 필요하면 Core의 단계를, 다른 도구면 `bindings`를 바꾼다.

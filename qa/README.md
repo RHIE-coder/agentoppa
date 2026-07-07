@@ -2,7 +2,7 @@
 
 > AgentOppa가 *만든* 재사용 Core 하네스가 진짜 도는지 증명하는 **상시 QA 타깃**. 검사기 red/green 픽스처(`.agentoppa/fixtures/`, 초소형)와 달리, 여기엔 하네스가 *물고 도는 진짜 미니 프로젝트*(시드)가 산다.
 >
-> 모델(P0 잠금): 유저 프로젝트 = **Project(`.harness/`: intent + config{core·bindings·values} + 구현)** + **재사용 Core(`.agentoppa/`: 마켓 2개 + `plugins/<core>/` 워크플로우·스킬·훅)**. 도구는 `.claude`/`.codex` 얇은 포인터로 Core 를 *가리켜* 적재. 빌드 = `plugins/agentoppa/bin/build-skills.mjs` (Project → Core 묶음).
+> 모델(P0 잠금): 유저 프로젝트 = **Project(`.harness/<하네스>/`: intent + config{core·bindings·values} + 구현)** + **재사용 Core(`.agentoppa/`: 마켓 2개 + `plugins/<core>/` 워크플로우·스킬·훅)**. 도구는 `.claude`/`.codex` 얇은 포인터로 Core 를 *가리켜* 적재. 빌드 = `plugins/agentoppa/bin/build-skills.mjs` (Project → Core 묶음).
 
 ## 이게 뭔가 / 뭐가 아닌가
 
@@ -92,4 +92,4 @@ node qa/run.mjs judge <caseId>       # 사후 판정 (diff·합격테스트·존
 예외: `vp1`(비전 증명)은 시드 자체가 완성된 두 바인딩이라 **agent 단계 없이** 셋업 직후 바로 judge — 자족형.
 
 기계화된 판정(JUDGES): `harness_present` · `project_unchanged` · `compiled_idempotent` · `acceptance` · `fits_existing_runner` · `foreign_harness_preserved` · `interview_gated` · `contract` · `source_edits_preserved` · `intent_reflected` · `core_reuse` · `unbound_errors` · `resume_equivalent`.
-`resume_equivalent` 는 *판정 로직*이 기계화됨 — 중단본 vs 무중단본의 **역할 집합·인계 순서·유효 헤더** 구조 동등(`checks/lib/resume.mjs`, red/green 픽스처로 검증). 내용 텍스트는 안 본다(LLM 생성이라 매번 다름 — "같은 단계를 같은 순서로 이었나"가 핵심). 라이브 2-run *수집*(무중단본 `.harness/artifacts-baseline/` + 재개본 `.harness/artifacts/` 두 산출 뜨기)만 세션이 몬다 — "전자동 버튼"은 과대선언이라 안 둔다.
+`resume_equivalent` 는 *판정 로직*이 기계화됨 — 중단본 vs 무중단본의 **역할 집합·인계 순서·유효 헤더** 구조 동등(`checks/lib/resume.mjs`, red/green 픽스처로 검증). 내용 텍스트는 안 본다(LLM 생성이라 매번 다름 — "같은 단계를 같은 순서로 이었나"가 핵심). 라이브 2-run *수집*(무중단본 `.harness/<하네스>/artifacts-baseline/` + 재개본 `.harness/<하네스>/artifacts/` 두 산출 뜨기)만 세션이 몬다 — "전자동 버튼"은 과대선언이라 안 둔다.

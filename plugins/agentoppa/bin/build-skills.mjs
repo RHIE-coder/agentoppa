@@ -1,18 +1,21 @@
 #!/usr/bin/env node
-// build-skills — Project(.harness/)를 읽어 재사용 Core 묶음(.agentoppa/)을 결정적으로 산출한다.
+// build-skills — Project(.harness/<하네스>/)를 읽어 재사용 Core 묶음(.agentoppa/)을 결정적으로 산출한다.
 //   왜: .harness → 적재 가능한 Core 묶음으로 만드는 과정이 LLM 수작업이었다. 이 스크립트가 그 다리를 기계화한다.
-//   모델(P0 잠금): AgentOppa = Maker(아무것도 안 싣는다). 유저가 자기 Project(.harness/)에서 재사용 Core(.agentoppa/)를
+//   단일 활성 하네스: 한 프로젝트에 여러 하네스가 .harness/<이름>/ 로 공존할 수 있고, 빌드·실행 대상은 selector
+//         (인자 → HARNESS_MAIN → <root>/.harness-main)가 고른 1개다. 프로젝트 층은 전부 그 이름 폴더 아래:
+//         .harness/<이름>/{config.yaml,intent.md,core/,artifacts/,project/}. 루트 .harness/ 직하는 어떤 하네스도 점유하지 않는다.
+//   모델(P0 잠금): AgentOppa = Maker(아무것도 안 싣는다). 유저가 자기 Project(.harness/<이름>/)에서 재사용 Core(.agentoppa/)를
 //         빌드한다. Core = AgentOppa 자신과 동형의 자체완결 묶음(.claude-plugin + .agents + plugins/<core>/) →
 //         github·복붙으로 이식, 여러 프로젝트가 *가리켜* 쓴다. 프로젝트 값을 본문에 안 박는 게 재사용의 비결:
-//         값-빈자리({이름})도 능력-빈자리({cap:이름})도 박지 않는다 — 둘 다 런타임에 .harness/config.yaml
+//         값-빈자리({이름})도 능력-빈자리({cap:이름})도 박지 않는다 — 둘 다 런타임에 .harness/<이름>/config.yaml
 //         (values:/bindings:)에서 읽힌다. 산출물 작업폴더(브랜치)도 안 박는다 — 실행 시 config.feature→git브랜치→default
 //         로 풀린다(아래 슬롯치환). 소비 프로젝트는 config 만 바꾸면 재빌드 없이 같은 Core 를 쓴다(ARCHITECTURE §2).
 //   계약 출처: agent-engineer/references/{contract,phases,recipe}.md, 포맷 출처: ccc-skills·ccc-agents·ccc-hooks·ccc-plugin.
 //             어긋나면 그 SKILL.md/references 가 정답.
 //
-// 사용법: node build-skills.mjs <project-root>
-//   <project-root>/.harness/ 를 읽어 <project-root>/.agentoppa/ 에 Core 묶음 한 벌 + 그 안 마켓 2개를 채운다.
-//   (project-root 인자만 받는다 — 이 스크립트는 엔진(plugins) 안이라 특정 콘텐츠 트리를 하드코딩하지 않는다. 한방향.)
+// 사용법: node build-skills.mjs <project-root> [하네스이름]
+//   <project-root>/.harness/<하네스>/ 를 읽어 <project-root>/.agentoppa/ 에 Core 묶음 한 벌 + 그 안 마켓 2개를 채운다.
+//   하네스 이름은 인자 → HARNESS_MAIN → <root>/.harness-main 순으로 정한다(특정 하네스 이름을 하드코딩하지 않는다. 한방향).
 //
 // 생성 레이아웃 (.agentoppa/ 자체완결 묶음 — AgentOppa 자신과 동형):
 //   <root>/.agentoppa/.claude-plugin/marketplace.json              # Claude 마켓 (owner 스키마), source "./plugins/<core>"
@@ -24,7 +27,7 @@
 //   <root>/.agentoppa/plugins/<core>/phases/<name>.md              # phase 소스(슬롯 미치환 원문) — 로컬 저작분만, core:<name> 으로 가리켜 재사용.
 //   <root>/.agentoppa/plugins/<core>/interface.json                # 이 Core 가 선언한 빈자리 명세(능력·값·단계) — setup/scaffold 가 읽음.
 //   <root>/.agentoppa/plugins/<core>/agents/<name>.md (+.toml)     # Claude 에이전트(.md) + build-agents.mjs 가 Codex .toml 동반 생성.
-//   <root>/.agentoppa/plugins/<core>/hooks/hooks.json (+ .mjs)     # project/hooks/ 저작분 그대로 이관(없으면 strict 시 기본 게이트). Codex 는 plugin.json 포인터로.
+//   <root>/.agentoppa/plugins/<core>/hooks/hooks.json (+ .mjs)     # project/hooks/ 저작분 그대로 이관(없으면 strict 시 기본 게이트) + harness-active.mjs(활성 하네스 게이트). Codex 는 plugin.json 포인터로.
 //   <root>/.agentoppa/plugins/<core>/always-on.md                  # Core 행동 규칙 (fallback import 대상).
 //   <root>/.agentoppa/README.md                                    # 연동 명령(적재 메뉴) + 폴더 목적 + 배포 옵션.
 //   <root>/CLAUDE.md · <root>/AGENTS.md                            # Core 규칙 import 줄 (append-only · 멱등 — 플러그인 없이도 행동 가드 생존).
@@ -35,7 +38,7 @@
 //   - 런타임 엔진 금지: loop·dynamic workers 는 *컴파일된 SKILL.md 본문에 self-gate 산문*으로 emit 한다
 //       (스킬 읽는 LLM 이 스스로 반복/선택 — 외부 오케스트레이터 없음). loop=do[] 마지막 phase 맨 위 self-gate,
 //       workers=첫 단락 뒤 선택 블록.
-//   - core/validate.mjs 는 .harness/core/ 그대로 emit (검사 대상 config 와 같은 Project(.harness/) 영역, Core 묶음으로 옮기지 않음).
+//   - core/validate.mjs 는 .harness/<하네스>/core/ 그대로 emit (검사 대상 config 와 같은 Project 영역, Core 묶음으로 옮기지 않음).
 //   - CLAUDE.md/AGENTS.md 전체 재작성 금지 — import 줄 존재검사 후 append-only (기존 사용자 파일 비손상).
 //
 // zero-dep(Node 빌트인만) · 크로스OS(mac·linux·windows).
@@ -56,23 +59,48 @@ const defer = (m) => { console.log(`  ${c.b}DEFER${c.x} ${m}`); deferred.push(m)
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// 생성 콘텐츠·훅이 가리킬 프로젝트 층 네임스페이스 — coreName 확정 뒤 `.harness/<core>` 로 채워진다.
+//   (여러 하네스가 `.harness/<이름>/` 로 공존하고, 실행되는 건 selector 가 고른 1개다 — 단일 활성 하네스.)
+let hns = ".harness";
+
+// 활성 하네스 이름 해석 = 인자(argv[3]) → HARNESS_MAIN → <root>/.harness-main(첫 비주석·비어있지 않은 줄). 없으면 null.
+//   소유는 selector + `.harness/<이름>/config.yaml` 로만 판단한다 — 하네스 이름 목록을 하드코딩하거나
+//   `.harness/` 하위 폴더를 스캔해 추측하지 않는다(요청 주의사항).
+function resolveActiveHarness(root, cliArg) {
+  if (cliArg && cliArg.trim()) return cliArg.trim();
+  if (process.env.HARNESS_MAIN && process.env.HARNESS_MAIN.trim()) return process.env.HARNESS_MAIN.trim();
+  const sel = join(root, ".harness-main");
+  if (existsSync(sel)) {
+    const name = readFileSync(sel, "utf8").split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+    if (name) return name;
+  }
+  return null;
+}
+
 // ---------- 인자 ----------
 const DUMP_CFG = process.env.PARSECONFIG_DUMP || null; // 동치 검사용: parseConfig 결과만 덤프하고 종료(아래 훅)
 const projectRoot = process.argv[2];
-let ROOT, harnessDir, cfgPath;
+const harnessArg = process.argv[3] || null; // (선택) 빌드할 하네스 이름 — 없으면 selector(.harness-main/HARNESS_MAIN).
+let ROOT, harnessDir, cfgPath, harnessName;
 if (!DUMP_CFG) {
   if (!projectRoot) {
-    console.log(`${c.r}사용법: node build-skills.mjs <project-root>${c.x}`);
-    console.log(`  예) node build-skills.mjs /path/to/my-project   (그 안의 .harness/ 를 .agentoppa/ Core 묶음으로 빌드)`);
+    console.log(`${c.r}사용법: node build-skills.mjs <project-root> [하네스이름]${c.x}`);
+    console.log(`  하네스 이름은 인자 → HARNESS_MAIN → <root>/.harness-main 순으로 정한다(단일 활성 하네스).`);
+    console.log(`  예) node build-skills.mjs /path/to/my-project steward   (그 안의 .harness/steward/ 를 .agentoppa/ Core 묶음으로 빌드)`);
     process.exit(2);
   }
   ROOT = resolve(projectRoot);
-  harnessDir = join(ROOT, ".harness");
+  harnessName = resolveActiveHarness(ROOT, harnessArg);
+  if (!harnessName) {
+    console.log(`${c.r}✗ 빌드할 하네스를 못 정함 — 인자로 이름을 주거나 <root>/.harness-main(또는 HARNESS_MAIN)에 이름 1개를 적어라.${c.x}`);
+    process.exit(2);
+  }
+  harnessDir = join(ROOT, ".harness", harnessName);
   cfgPath = join(harnessDir, "config.yaml");
-  if (!existsSync(cfgPath)) { console.log(`${c.r}✗ config 없음: ${cfgPath}${c.x}`); process.exit(2); }
+  if (!existsSync(cfgPath)) { console.log(`${c.r}✗ 활성 하네스 설정 없음: '${harnessName}' (경로: ${cfgPath})${c.x}`); process.exit(2); }
 
-  console.log(`${c.d}build-skills${c.x} ${ROOT}`);
-  console.log(`${c.d}  Project${c.x} .harness/  ${c.d}→ Core 묶음${c.x} .agentoppa/ (자체완결: 마켓 2개 + plugins/<core>/)\n`);
+  console.log(`${c.d}build-skills${c.x} ${ROOT}  ${c.d}하네스=${c.x}${harnessName}`);
+  console.log(`${c.d}  Project${c.x} .harness/${harnessName}/  ${c.d}→ Core 묶음${c.x} .agentoppa/ (자체완결: 마켓 2개 + plugins/<core>/)\n`);
 }
 
 // ---------- 작은 유틸 (값 정리 — 인라인주석 견고) ----------
@@ -198,9 +226,9 @@ function findCorePhasesDir(startDir, core) {
   }
 }
 // phase 소스 파일 위치 해석 (`core:` 적재 배선 — recipe.md §1·contract 정합).
-//   - `core:` 없으면(단독 하네스): 종전대로 .harness/project/phases/<name>.md 만.
+//   - `core:` 없으면(단독 하네스): 종전대로 .harness/<하네스>/project/phases/<name>.md 만.
 //   - `core: <name>` 있으면(재사용 모드): "복사 말고 가리켜 재사용". 두 곳을 *우선순위*로 본다.
-//       1) .harness/project/phases/<name>.md  — 있으면 이게 프로젝트 오버라이드(우선).
+//       1) .harness/<하네스>/project/phases/<name>.md  — 있으면 이게 프로젝트 오버라이드(우선).
 //       2) <위로 탐색>/.agentoppa/plugins/<core>/phases/<name>.md — Core 묶음이 들고 있는 phase 소스(공유 단일본).
 //     [설계 결정 — 보고서 flag] 문서는 "Core 묶음 안" 까지만 못박았고 *정확한 파일·탐색*은 미확정이었다.
 //     Core 묶음(.agentoppa/)은 컴파일 산출 SKILL.md 만 들고 phase '소스'(슬롯 미치환 원문)는 없었다 →
@@ -275,7 +303,7 @@ function parsePhase(name) {
 }
 
 // ---------- 슬롯 치환 ----------
-// {role} → 산출물 경로(.harness/artifacts/<작업폴더>/<role>.md, 상대경로 — 컴파일 산출은 프로젝트 루트 기준).
+// {role} → 산출물 경로(.harness/<하네스>/artifacts/<작업폴더>/<role>.md, 상대경로 — 컴파일 산출은 프로젝트 루트 기준).
 //   작업폴더는 빌드 때 박지 않는다 — 값·능력 슬롯과 같은 결로 실행 시 푼다(아래 appendWorkdirNote). 박으면
 //   빌드 시점 브랜치가 굳어 브랜치를 바꿔도 옛 폴더를 가리키고(resume·병렬 깨짐), 커밋된 Core 를 여러
 //   브랜치·프로젝트가 공유할 때 이식성이 깨진다(ARCHITECTURE §2 "실행 시점에 .harness 에서 읽는다" 정합).
@@ -283,7 +311,7 @@ function parsePhase(name) {
 // {프로젝트값} → config.values 의 값. needs 가 가리키는 키 + 한국어 흔한 별칭.
 const WORKDIR = "<작업폴더>"; // 작업 바통 폴더 자리표시 — 실행 시 config.feature→git브랜치→default 로 풀린다.
 function artifactPath(role) {
-  return `.harness/artifacts/${WORKDIR}/${role}.md`;
+  return `${hns}/artifacts/${WORKDIR}/${role}.md`;
 }
 // {role}/worker 합본 경로에 남은 <작업폴더> 자리표시를 실행 시점 해석 산문으로 한 번 안내(값·능력 슬롯과 동형).
 //   해석 규칙은 validate 신선도 폴더 결정과 *동치*여야 한다(config.feature → git 브랜치 → default).
@@ -291,7 +319,7 @@ function appendWorkdirNote(body) {
   if (!body.includes(WORKDIR)) return body;
   const note =
     `위 경로의 \`${WORKDIR}\` 는 빌드 때 박지 않는다 — 실행 시 정한다: ` +
-    `\`.harness/config.yaml\` 의 \`feature:\` 값이 있으면 그것, 없으면 현재 git 브랜치 이름(폴더명으로 쓰게 특수문자는 \`-\` 로 바꿔), 둘 다 없으면 \`default\`. ` +
+    `\`${hns}/config.yaml\` 의 \`feature:\` 값이 있으면 그것, 없으면 현재 git 브랜치 이름(폴더명으로 쓰게 특수문자는 \`-\` 로 바꿔), 둘 다 없으면 \`default\`. ` +
     `한 작업의 산출물이 모두 이 한 폴더 아래 모인다(브랜치를 바꾸면 그 브랜치 폴더로 따라간다).`;
   return `${body.replace(/\s+$/, "")}\n\n${note}`;
 }
@@ -313,7 +341,7 @@ const VALUE_ALIASES = {
 };
 
 // {값슬롯} → 런타임-읽기 산문. 능력-빈자리와 같은 결: *결과를 박지 않는다* — 본문이 실행 시
-//   .harness/config.yaml 의 values: 에서 직접 읽어 풀게 만든다(같은 Core 가 프로젝트마다 다른 값으로 동작,
+//   .harness/<하네스>/config.yaml 의 values: 에서 직접 읽어 풀게 만든다(같은 Core 가 프로젝트마다 다른 값으로 동작,
 //   소비자는 재빌드 없이 config 만 고친다 — ARCHITECTURE §2 "실행 시점에 .harness 에서 읽는다" 정합).
 //   valueMeta: 이 phase 의 값-빈자리 Map<키, {optional}>(needs 흡수분 포함) — 능력의 capMeta 와 동형.
 //   선택(optional) 빈자리는 꼬리를 "멈추지 말고 건너뛴 뒤 명시" 변형으로 emit(본문 '있으면 쓴다'와 정합).
@@ -337,7 +365,7 @@ function expandValueSlots(body, valueMeta, knownRoles) {
   // 값별 해석 안내(결정적 산문). 정렬해 멱등 — 능력 안내(expandCapabilitySlots)와 같은 형식.
   const notes = [...used].sort().map((key) => {
     const head =
-      `\`${key}\`(값)의 알맹이는 \`.harness/config.yaml\` 의 \`values: ${key}:\` 가 담은 값이다. ` +
+      `\`${key}\`(값)의 알맹이는 \`${hns}/config.yaml\` 의 \`values: ${key}:\` 가 담은 값이다. ` +
       `지금 그 값을 읽어 그대로 쓰라(명령이면 그대로 실행한다). `;
     const tail = valueMeta.get(key).optional
       ? `이건 선택 빈자리다 — 값이 없으면 멈추지 말고 이 단계를 건너뛴 뒤 산출물에 "미설정: ${key}" 라고 명시한다(값을 추측하지 않는다).`
@@ -373,7 +401,7 @@ function substituteNext(body, nextName) {
   return body.replace(/\{next\}/g, repl);
 }
 
-// {cap:<이름>} → 런타임-읽기 산문. 값 슬롯과 달리 *결과를 박지 않는다* — 본문이 실행 시 .harness/config.yaml 을
+// {cap:<이름>} → 런타임-읽기 산문. 값 슬롯과 달리 *결과를 박지 않는다* — 본문이 실행 시 .harness/<하네스>/config.yaml 을
 //   직접 읽어 풀게 만든다(같은 Core 가 프로젝트마다 다른 구현으로 동작 = 재사용). when/loop self-gate emit 과 동형.
 //   동작: 각 {cap:이름} 인라인을 '`이름`(능력)' 으로 바꾸고, 본문 끝에 *능력별 한 번* 해석 안내 단락을 붙인다.
 //     - 조사 중립: 토큰을 괄호로 끊어('`이름`(능력)') 뒤에 어떤 한국어 조사(로/를/은…)가 붙어도 자연스럽게 읽힌다.
@@ -394,7 +422,7 @@ function expandCapabilitySlots(body, capMeta) {
   // 능력별 해석 안내(결정적 산문). 정렬해 멱등 — 재컴파일해도 같은 텍스트.
   const notes = [...used].sort().map((cap) => {
     const head =
-      `\`${cap}\`(능력)의 구현은 \`.harness/config.yaml\` 의 \`bindings: ${cap}:\` 가 가리키는 값이다. ` +
+      `\`${cap}\`(능력)의 구현은 \`${hns}/config.yaml\` 의 \`bindings: ${cap}:\` 가 가리키는 값이다. ` +
       `그 값이 단일 토큰이면 같은 파일 \`impl:\` 아래 그 키가, 명령·경로면 그 자체가 알맹이다. ` +
       `지금 그 값을 읽어 그대로 실행하라(경로면 그 파일을 열어 따른다). `;
     const tail = capMeta.get(cap).optional
@@ -520,9 +548,16 @@ const sync = C.scalars.sync || "medium";
 // Core 이름: config.core(재사용 모드, 가리키는 Core 이름) → config.harness(단독 하네스 하위호환) → basename(ROOT).
 //   이게 Core 묶음 폴더(.agentoppa/plugins/<core>/)·매니페스트 name 이 된다 (kebab-case 강제 — recipe.md §9).
 function kebab(s) { return String(s).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""); }
-const coreRaw = C.scalars.core || C.scalars.harness || basename(ROOT) || "core";
+const coreRaw = C.scalars.core || C.scalars.harness || harnessName || "core";
 const coreName = kebab(coreRaw) || "core";
 if (coreName !== coreRaw) info(`Core 이름 정규화: '${coreRaw}' → '${coreName}' (plugin name 은 kebab-case)`);
+// 폴더(= selector 로 고른 이름)와 하네스 이름이 어긋나면 소유가 모호해진다 — 폴더명 = 하네스 이름이어야 한다.
+if (kebab(harnessName) !== coreName) {
+  bad(`폴더 이름과 하네스 이름 불일치: .harness/${harnessName}/ 에서 빌드하는데 config 의 이름은 '${coreName}'. 폴더명(= .harness-main selector)과 하네스 이름을 맞춰라.`);
+  process.exit(1);
+}
+// 이제부터 생성 콘텐츠·훅이 가리킬 프로젝트 층 = `.harness/<core>` (단일 활성 하네스 네임스페이스).
+hns = `.harness/${coreName}`;
 const version = C.scalars.version || "0.1.0";
 const description = C.scalars.description || `${coreName} Core (AgentOppa 빌드).`;
 const owner = C.scalars.owner || "AgentOppa";
@@ -678,12 +713,12 @@ for (const item of seq) {
 // phase 소스를 하나도 못 찾으면(예: core: 재사용 모드인데 Core 묶음이 아직 없어 phases/ 를 못 가리킴) 컴파일할 게 없다.
 //   → 여기서 명확히 멈춘다. (안 그러면 아래 pluginDir 가 안 만들어진 채 interface.json 을 써서 ENOENT 로 죽는다 — 조용한 크래시 방지.)
 if (madeSkills === 0) {
-  bad(`컴파일된 스킬 0개 — phase 소스를 하나도 못 찾음(.harness/project/phases/<name>.md, 또는 core: 재사용이면 그 묶음의 phases/<name>.md 가 필요). 빌드 중단.`);
+  bad(`컴파일된 스킬 0개 — phase 소스를 하나도 못 찾음(.harness/<하네스>/project/phases/<name>.md, 또는 core: 재사용이면 그 묶음의 phases/<name>.md 가 필요). 빌드 중단.`);
   process.exit(1);
 }
 
 // ===== 1b. Core 인터페이스 명세 + setup 스킬 (소비 프로젝트가 AgentOppa 없이 .harness 를 자급) =====
-// 왜: 빌드된 Core(플러그인)가 *스스로* 소비 프로젝트의 .harness/config.yaml 을 깐다 → 프로젝트B는 AgentOppa 불필요.
+// 왜: 빌드된 Core(플러그인)가 *스스로* 소비 프로젝트의 .harness/<하네스>/config.yaml 을 깐다 → 프로젝트B는 AgentOppa 불필요.
 //   interface.json = 이 Core 가 선언한 빈자리(능력·값) + 단계 목록. scaffold.mjs 가 읽어 골격을 쓰고, setup 스킬이
 //   에이전트에게 "프로젝트를 살펴 values·bindings 를 채워라" 지시. 값-빈자리(values)도 능력-빈자리(bindings)도
 //   런타임에 읽히므로 소비자가 채우면 그대로 동작. = "복사 말고 가리켜 재사용"의 소비자 자급.
@@ -765,7 +800,7 @@ if (existsSync(srcAgentsDir) && statSync(srcAgentsDir).isDirectory()) {
 }
 
 // ===== 3. 훅 → .agentoppa/plugins/<core>/hooks/ (공유 한 트리) =====
-// 우선순위: (1) 프로젝트가 .harness/project/hooks/ 를 저작했으면 *그 폴더를 그대로* 묶음 hooks/ 로 옮긴다
+// 우선순위: (1) 프로젝트가 .harness/<하네스>/project/hooks/ 를 저작했으면 *그 폴더를 그대로* 묶음 hooks/ 로 옮긴다
 //               (1급 입력 — 매니페스트·스크립트·데이터 동반, 기본 게이트로 덮지 않는다).
 //           (2) 프로젝트 훅이 없고 strict 게이트 phase 가 있으면 → 안전한 '비손상' 기본 게이트를 emit(종전 동작).
 //   왜 (1): 이게 없으면 build 가 매번 hooks.json 을 기본 게이트로 덮어써 커스텀 훅(커밋 관문·세션 규칙 주입)이
@@ -788,6 +823,9 @@ if (projectHookFiles.length) {
     copyFileSync(join(srcHooksDir, f), join(hooksDir, f));
     ok(`.agentoppa/plugins/${coreName}/hooks/${f}`);
   }
+  // 활성 하네스 게이트 헬퍼 — 프로젝트 저작 훅이 import 해 자기-게이트하게(덮지 않음: 이미 있으면 유지).
+  emitActiveHelper(hooksDir);
+  info(`활성 하네스 게이트: 프로젝트 훅은 각자 맨 위에서 harness-active.mjs 의 isActiveHarness("${coreName}") 로 게이트하라 — .harness-main 이 이 하네스를 가리킬 때만 작동(단일 활성 하네스).`);
   if (!projectHookFiles.includes("hooks.json"))
     warn(`project/hooks/ 에 hooks.json 없음 — Codex 포인터(.codex-plugin hooks)가 가리킬 매니페스트가 필요하다`);
   if (strictPhases.length)
@@ -800,9 +838,10 @@ if (projectHookFiles.length) {
   console.log(`\n${c.d}hooks${c.x} strict 게이트 ${strictPhases.length}개: ${strictPhases.map((p) => p.name).join(", ")} → .agentoppa/plugins/${coreName}/hooks/ (기본 비손상 게이트)`);
   ensureDir(hooksDir);
 
-  const hookScript = GATE_HOOK_SCRIPT();
+  emitActiveHelper(hooksDir); // 활성 하네스 게이트 헬퍼(공유) — 아래 gate-review 가 import 한다.
+  const hookScript = GATE_HOOK_SCRIPT(coreName);
   writeFileSync(join(hooksDir, "gate-review.mjs"), hookScript);
-  ok(`.agentoppa/plugins/${coreName}/hooks/gate-review.mjs (기본 게이트 — Claude·Codex 한 벌)`);
+  ok(`.agentoppa/plugins/${coreName}/hooks/gate-review.mjs (기본 게이트 — Claude·Codex 한 벌, .harness-main 게이트 포함)`);
 
   // 기본 hooks.json (양쪽 같은 JSON 모양 — ccc-hooks §1). 경로변수는 ${CLAUDE_PLUGIN_ROOT}
   //   (Codex 가 별칭으로 받음 — ccc-plugin template '경로 변수'). 스크립트 위치를 가리키되,
@@ -884,19 +923,19 @@ const codexMarket = {
 writeJSON(join(codexMarketDir, "marketplace.json"), codexMarket);
 ok(`.agentoppa/.agents/plugins/marketplace.json (name='${coreName}', source.path='${pluginSource}', policy=AVAILABLE)`);
 
-// ===== 6. core/validate.mjs 단일소스 emit (.harness/core/ 그대로) =====
-// 정본 = agent-engineer/scripts/validate.mjs. .harness/core/ 로 복사해 자기검사 독립(지난 라이브의 '즉흥 복사' 결정화).
-//   플러그인 트리로 옮기지 않는다 — 검사 대상(.harness/config.yaml)과 같은 Project(.harness/) 영역에 둔다.
-//   프로젝트 고유 검사는 이 정본을 고치지 말고 .harness/project/impl/validate-extra.mjs 에 둔다 — 정본이 실행 끝에
+// ===== 6. core/validate.mjs 단일소스 emit (.harness/<core>/core/ 그대로) =====
+// 정본 = agent-engineer/scripts/validate.mjs. .harness/<core>/core/ 로 복사해 자기검사 독립(지난 라이브의 '즉흥 복사' 결정화).
+//   플러그인 트리로 옮기지 않는다 — 검사 대상(.harness/<core>/config.yaml)과 같은 Project 영역에 둔다.
+//   프로젝트 고유 검사는 이 정본을 고치지 말고 .harness/<core>/project/impl/validate-extra.mjs 에 둔다 — 정본이 실행 끝에
 //   그 파일이 있으면 이어서 돌려 결과를 합친다(훅과 같은 "프로젝트 저작분 1급" 원칙의 검사판). project/ 는 build 가
 //   안 덮으므로 재빌드에도 산다 → 재빌드가 커밋된 회귀 가드를 조용히 지우던 구멍을 막는다.
-console.log(`\n${c.d}core${c.x} validate.mjs 정본 복사 → .harness/core/ (Project 영역)`);
+console.log(`\n${c.d}core${c.x} validate.mjs 정본 복사 → ${hns}/core/ (Project 영역)`);
 const canonicalValidate = resolve(__dirname, "..", "skills", "agent-engineer", "scripts", "validate.mjs");
 if (existsSync(canonicalValidate)) {
   const coreDir = join(harnessDir, "core");
   ensureDir(coreDir);
   copyFileSync(canonicalValidate, join(coreDir, "validate.mjs"));
-  ok(`.harness/core/validate.mjs (정본: skills/agent-engineer/scripts/validate.mjs)`);
+  ok(`${hns}/core/validate.mjs (정본: skills/agent-engineer/scripts/validate.mjs)`);
 } else {
   bad(`정본 validate.mjs 없음: ${canonicalValidate} — core/validate.mjs 미생성`);
 }
@@ -947,8 +986,43 @@ if (deferred.length) {
 console.log(`다음: node plugins/agentoppa/skills/ccc-plugin/scripts/validate.mjs ${pluginDir}  로 Core 플러그인(매니페스트·마켓) 점검.`);
 process.exit(errors === 0 ? 0 : 1);
 
+// ---------- 활성 하네스 게이트 헬퍼 (공유, 결정적 emit) ----------
+// 왜: 여러 하네스가 .harness/<이름>/ 로 공존해도 실행되는 건 .harness-main 이 고른 1개다. 각 훅은
+//     자기 이름이 활성일 때만 작동해야 한다(동시에 여러 하네스가 커밋을 막지 않게). project/hooks/ 저작 훅도
+//     이 헬퍼를 import 해 맨 위에서 게이트한다. zero-dep · 크로스OS · Claude/Codex 공용.
+function HARNESS_ACTIVE_HELPER() {
+  return `#!/usr/bin/env node
+// harness-active — 단일 활성 하네스 게이트 헬퍼. [AgentOppa build-skills 가 생성]
+//   activeHarness(root): HARNESS_MAIN(env) → <root>/.harness-main(첫 비주석·비어있지 않은 줄) → null.
+//   isActiveHarness(self, root): 활성 하네스가 self 와 같으면 true. 선택기 없거나 다르면 false(훅은 조용히 빠짐).
+//   소유는 selector 로만 판단한다 — .harness/ 하위 폴더를 스캔하거나 이름을 하드코딩하지 않는다. zero-dep · 크로스OS.
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+export function activeHarness(root) {
+  const r = root ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  if (process.env.HARNESS_MAIN && process.env.HARNESS_MAIN.trim()) return process.env.HARNESS_MAIN.trim();
+  const sel = join(r, ".harness-main");
+  if (existsSync(sel)) {
+    const name = readFileSync(sel, "utf8").split(/\\r?\\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+    if (name) return name;
+  }
+  return null;
+}
+export function isActiveHarness(self, root) {
+  return activeHarness(root) === self;
+}
+`;
+}
+function emitActiveHelper(dir) {
+  const p = join(dir, "harness-active.mjs");
+  if (existsSync(p)) { info(`hooks/harness-active.mjs 이미 있음 — 유지(프로젝트 저작본 비손상)`); return; }
+  writeFileSync(p, HARNESS_ACTIVE_HELPER());
+  ok(`.agentoppa/plugins/${coreName}/hooks/harness-active.mjs (활성 하네스 게이트 헬퍼)`);
+}
+
 // ---------- 게이트 훅 스크립트 본문 (비손상 가드, 결정적 emit) ----------
-function GATE_HOOK_SCRIPT() {
+function GATE_HOOK_SCRIPT(self) {
   return `#!/usr/bin/env node
 // gate-review — strict 게이트가 강제하는 비손상 가드 (PreToolUse). [AgentOppa build-skills 가 생성]
 // 불변식: 하네스는 기존 src/·test/ 파일을 수정/삭제하지 않는다(추가만). 기존 파일을 Edit/Write로 덮으려 하면 deny.
@@ -957,6 +1031,14 @@ function GATE_HOOK_SCRIPT() {
 //         — PLUGIN_ROOT(플러그인 위치)가 아니다. 둘을 섞으면 src/·test/ 판정이 어긋난다.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, relative } from "node:path";
+import { isActiveHarness } from "./harness-active.mjs";
+
+// 프로젝트 루트: CLAUDE_PROJECT_DIR(Claude) → cwd(에이전트 실행 위치) 순. PLUGIN_ROOT 는 *쓰지 않는다*(플러그인 위치라 무관).
+const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
+// 단일 활성 하네스 게이트: .harness-main(또는 HARNESS_MAIN)이 이 하네스('${self}')를 가리킬 때만 작동한다.
+//   선택기가 없거나 다른 하네스를 가리키면 조용히 빠진다(no-op).
+if (!isActiveHarness(${JSON.stringify(self)}, root)) process.exit(0);
 
 let input;
 try { input = JSON.parse(readFileSync(0, "utf8")); } catch { process.exit(0); }
@@ -967,8 +1049,6 @@ if (!/^(Edit|Write|MultiEdit|NotebookEdit)$/.test(tool)) process.exit(0);
 const path = input.tool_input?.file_path ?? input.tool_input?.path ?? "";
 if (!path) process.exit(0);
 
-// 프로젝트 루트: CLAUDE_PROJECT_DIR(Claude) → cwd(에이전트 실행 위치) 순. PLUGIN_ROOT 는 *쓰지 않는다*(플러그인 위치라 무관).
-const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const abs = resolve(root, path);
 const rel = relative(root, abs).replace(/\\\\/g, "/"); // 크로스OS: 윈도우 역슬래시를 '/'로 정규화(아래 src/·test/ 정규식이 모든 OS에서 맞게).
 
@@ -998,9 +1078,9 @@ function CORE_README(core, source, desc) {
 > ${desc}
 >
 > 이 폴더는 **재사용 Core**다 — 워크플로우(단계 흐름·게이트) + 범용 스킬 + 훅 + 인터페이스(빈자리)를 자체완결로 담는다.
-> AgentOppa(Maker)가 이 프로젝트의 \`.harness/\`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
+> AgentOppa(Maker)가 이 프로젝트의 \`.harness/${core}/\`(의도·바인딩·값)를 읽어 결정적으로 빌드한 산출물이다.
 > 프로젝트 값을 본문에 안 박는 게 재사용의 비결 — 값-빈자리도 능력-빈자리(\`{cap:}\`)도 실행 시
-> \`.harness/config.yaml\`(\`values:\` / \`bindings:\`·\`impl:\`)에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
+> \`.harness/${core}/config.yaml\`(\`values:\` / \`bindings:\`·\`impl:\`)에서 읽힌다. 그래서 같은 Core를 여러 프로젝트가 *가리켜* 쓴다.
 
 ## 폴더 구조
 
@@ -1030,13 +1110,22 @@ function CORE_README(core, source, desc) {
 
 ## 새 프로젝트에 붙이기 (setup — AgentOppa 없이)
 
-이 Core를 적재한 뒤(위), 이 프로젝트의 \`.harness/config.yaml\`을 깐다 — **AgentOppa 없이 이 플러그인만으로.** 이 Core가 든 \`setup\` 스킬에게 *"이 하네스 붙여줘"* 라고 하면 자동으로, 또는 헬퍼를 직접 돌린다:
+이 Core를 적재한 뒤(위), 이 프로젝트의 \`.harness/${core}/config.yaml\`을 깐다 — **AgentOppa 없이 이 플러그인만으로.** 이 Core가 든 \`setup\` 스킬에게 *"이 하네스 붙여줘"* 라고 **명시로 요청**할 때만 깐다(일반 구현 요청만으로 하네스 설정을 만들지 않는다). 또는 헬퍼를 직접 돌린다:
 
 \`\`\`bash
 node "\${CLAUDE_PLUGIN_ROOT}/skills/setup/scaffold.mjs"
 \`\`\`
 
-→ \`.harness/config.yaml\` 골격을 만들고 채울 빈자리 — 값(\`values\`)과 능력(\`bindings\`) — 을 알려 준다. 그 자리를 이 프로젝트 것으로 채우면(예: \`test_command: "npm test"\` · \`test-runner: "npx playwright test"\`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
+→ \`.harness/${core}/config.yaml\` 골격을 만들고 채울 빈자리 — 값(\`values\`)과 능력(\`bindings\`) — 을 알려 준다. 그 자리를 이 프로젝트 것으로 채우면(예: \`test_command: "npm test"\` · \`test-runner: "npx playwright test"\`) 끝 — 단계 스킬이 실행될 때 그 값을 읽어 동작한다.
+
+## 활성 하네스 선택 (\`.harness-main\`)
+
+한 프로젝트에 여러 하네스가 \`.harness/<이름>/\` 로 공존할 수 있지만, **실행되는 건 항상 1개다.** 루트의 \`.harness-main\`(gitignore 대상) 파일에 하네스 이름 하나만 적으면 그게 활성 하네스다 — 예: \`${core}\`. \`HARNESS_MAIN\` 환경변수가 있으면 그게 \`.harness-main\` 보다 우선한다.
+
+- 이 하네스의 훅·단계는 활성 하네스가 \`${core}\` 일 때만 작동한다(아니면 조용히 빠짐 — 동시에 여러 하네스가 커밋을 막지 않는다).
+- \`.harness-main\` 이 없으면 이 하네스의 훅은 아무 파일도 만들거나 커밋을 막지 않는다.
+- \`.harness-main\` 에 적힌 이름의 폴더·config가 없으면 "활성 하네스 설정 없음"으로 멈춘다.
+- \`setup\` 은 이 하네스를 처음 붙일 때 \`.harness-main\` 이 비어 있으면 \`${core}\` 로 채워 활성화한다(다른 하네스가 이미 활성이면 덮지 않고 알려 준다).
 
 ## Fallback — 플러그인 없이 떠도 행동 가드 생존
 
@@ -1046,10 +1135,10 @@ node "\${CLAUDE_PLUGIN_ROOT}/skills/setup/scaffold.mjs"
 ## 배포 옵션
 
 - **이식:** 이 \`.agentoppa/\` 폴더는 자체완결이라 통째로 다른 repo에 복사하거나 github에 올려 여러 프로젝트가 가리킬 수 있다.
-- **재빌드:** \`.harness/\`(의도·값·바인딩)를 고친 뒤 \`node <agentoppa>/plugins/agentoppa/bin/build-skills.mjs <project-root>\`로 다시 빌드(멱등 — 같은 입력→같은 산출).
+- **재빌드:** \`.harness/${core}/\`(의도·값·바인딩)를 고친 뒤 \`node <agentoppa>/plugins/agentoppa/bin/build-skills.mjs <project-root> ${core}\`로 다시 빌드(멱등 — 같은 입력→같은 산출).
 
 ---
 
-*손으로 고치지 마라 — 이 폴더는 \`.harness/\`에서 결정적으로 빌드된 산출물이다. 바꿀 게 있으면 \`.harness/\`를 고치고 재빌드한다.*
+*손으로 고치지 마라 — 이 폴더는 \`.harness/${core}/\`에서 결정적으로 빌드된 산출물이다. 바꿀 게 있으면 \`.harness/${core}/\`를 고치고 재빌드한다.*
 `;
 }

@@ -2,7 +2,7 @@
 name: tdd
 description: spec이 있고 실패테스트→구현으로 기능을 안전히 추가할 때. 기존 node --test 러너 재사용, 새 파일만 추가.
 ---
-입력 .harness/artifacts/board-service/spec.md을 읽는다.
+입력 .harness/safe-feature/artifacts/board-service/spec.md을 읽는다.
 1. 인수조건마다 *먼저 실패하는* 테스트를 기존 컨벤션대로 새 파일 `test/<feature>.test.mjs`에 작성한다 (기존 `test/*.test.mjs` 수정 금지). 러너는 node --test — 2번째 프레임워크 추가 금지.
 2. `node --test`로 빨간불을 확인한다.
 3. 최소 구현을 기존 모듈에 *추가*한다 (`src/routes/*`·`src/lib/*`). 기존 핸들러/테스트는 보존하고 새 동작만 더한다.

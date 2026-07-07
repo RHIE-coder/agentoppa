@@ -51,10 +51,29 @@ function allCases() {
 const findCase = (id) => allCases().find((k) => k.id === id) ?? die(`알 수 없는 케이스: ${id} (node qa/run.mjs list)`);
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
-// 재사용 Core 모델: AgentOppa 가 추가하는 경로 = Project(.harness) + Core 묶음(.agentoppa: 마켓 2개 + plugins/<core>/) +
-//   루트 fallback 문서(CLAUDE.md·AGENTS.md, Core 규칙 import). 적재 포인터 .claude/.codex 는 빌드가 안 만든다(적재 메뉴 몫).
-const HARNESS = [".harness", ".agentoppa", "CLAUDE.md", "AGENTS.md", ".claude", ".codex"];
+// 재사용 Core 모델: AgentOppa 가 추가하는 경로 = Project(.harness/<하네스>/) + 활성 하네스 선택기(.harness-main) +
+//   Core 묶음(.agentoppa: 마켓 2개 + plugins/<core>/) + 루트 fallback 문서(CLAUDE.md·AGENTS.md, Core 규칙 import).
+//   적재 포인터 .claude/.codex 는 빌드가 안 만든다(적재 메뉴 몫).
+const HARNESS = [".harness", ".harness-main", ".agentoppa", "CLAUDE.md", "AGENTS.md", ".claude", ".codex"];
 const isHarness = (p) => HARNESS.some((h) => p === h || p.startsWith(h + "/"));
+
+// 활성 하네스 이름 = HARNESS_MAIN(env) → <root>/.harness-main(첫 비주석·비어있지 않은 줄) → null.
+//   여러 하네스가 .harness/<이름>/ 로 공존해도 실행·판정 대상은 selector 가 고른 1개다(단일 활성 하네스).
+//   (build-skills.mjs 의 resolveActiveHarness 와 동치 — selector 로만 판단, .harness/ 하위 폴더를 스캔·추측하지 않는다.)
+function activeHarness(root) {
+  if (process.env.HARNESS_MAIN && process.env.HARNESS_MAIN.trim()) return process.env.HARNESS_MAIN.trim();
+  const sel = join(root, ".harness-main");
+  if (existsSync(sel)) {
+    const name = readFileSync(sel, "utf8").split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+    if (name) return name;
+  }
+  return null;
+}
+// 활성 하네스의 Project 폴더 절대경로(.harness/<이름>/). 선택기(.harness-main/HARNESS_MAIN) 없으면 null.
+function harnessDir(root) {
+  const name = activeHarness(root);
+  return name ? join(root, ".harness", name) : null;
+}
 
 // --- 판정들 (기계화된 것만; 나머지는 judge() 가 '?' 수동 표시) ---
 const JUDGES = {
@@ -129,9 +148,10 @@ const JUDGES = {
     // 나쁜 intent → intent-interview validator 가 not-ready(exit≠0) 로 게이트해야 통과.
     //   기존 검증기 재사용을 *spawn* 으로(결합 최소 — qa 가 plugins 를 import 하지 않음).
     const validator = join(ROOT, "plugins/agentoppa/skills/intent-interview/scripts/validate.mjs");
-    const intent = join(work, ".harness", "intent.md");
+    const hd = harnessDir(work);
+    const intent = hd && join(hd, "intent.md");
     if (!existsSync(validator)) return { ok: false, msg: `intent-interview validator 없음: ${rel(validator)}` };
-    if (!existsSync(intent)) return { ok: false, msg: "산출 .harness/intent.md 없음 (면담 안 돎?)" };
+    if (!hd || !existsSync(intent)) return { ok: false, msg: "산출 .harness/<하네스>/intent.md 없음 (활성 하네스 미설정 또는 면담 안 돎?)" };
     const r = spawnSync(process.execPath, [validator, intent], { cwd: work, encoding: "utf8" });
     // exit 0 = ready/통과 = 게이트 실패(나쁜 intent 가 새어나감). exit≠0 = 게이트 작동 = 통과.
     return r.status !== 0
@@ -140,16 +160,18 @@ const JUDGES = {
   },
 
   contract(work, kase) {
-    // .harness/artifacts/<feature>/ 의 단계 문서들을 헤더(§2)·연결(§4) 로 본다.
+    // .harness/<하네스>/artifacts/<feature>/ 의 단계 문서들을 헤더(§2)·연결(§4) 로 본다.
     //   판정 본체는 lib/contract (validator 와 동일 모듈). feature 는 case.md 또는 config.yaml 에서.
-    const root = join(work, ".harness", "artifacts");
-    if (!existsSync(root)) return { ok: false, msg: ".harness/artifacts/ 없음 (단계 산출물 인계 안 됨)" };
+    const hd = harnessDir(work);
+    if (!hd) return { ok: false, msg: "활성 하네스 없음 (.harness-main/HARNESS_MAIN 미설정)" };
+    const root = join(hd, "artifacts");
+    if (!existsSync(root)) return { ok: false, msg: ".harness/<하네스>/artifacts/ 없음 (단계 산출물 인계 안 됨)" };
     const feat = kase.feature || readConfigFeature(work);
     let fdir = feat ? join(root, feat) : null;
     if (!fdir || !existsSync(fdir)) {
       // feature 미상이면 artifacts 아래 첫 디렉터리를 쓴다(단일 기능 가정).
       const dirs = readdirSync(root).filter((d) => statSync(join(root, d)).isDirectory());
-      if (!dirs.length) return { ok: false, msg: `.harness/artifacts/ 아래 기능 디렉터리 없음` };
+      if (!dirs.length) return { ok: false, msg: `.harness/<하네스>/artifacts/ 아래 기능 디렉터리 없음` };
       fdir = join(root, dirs[0]);
     }
     // 인계 순서: config.yaml phase 순서가 있으면 그걸로, 없으면 파일명 정렬.
@@ -170,20 +192,23 @@ const JUDGES = {
   resume_equivalent(work, kase) {
     // 두 산출 세트 비교: 무중단(baseline) vs 중단→재개(resumed) 가 *구조 동등*인가.
     //   라이브 2-run *수집* 은 세션이 몬다(정직 경계) — 러너는 *판정* 만(역할 집합·순서·유효 헤더 → lib/resume).
-    //   경로 컨벤션: baseline=.harness/artifacts-baseline/<feat>/ · resumed=.harness/artifacts/<feat>/.
+    //   경로 컨벤션: baseline=.harness/<하네스>/artifacts-baseline/<feat>/ · resumed=.harness/<하네스>/artifacts/<feat>/.
     //   (세션이 무중단 기준본을 -baseline 으로 따로 떠 둔다. 하나라도 없으면 2-run 미수집 → 안내.)
     const feat = kase.feature || readConfigFeature(work);
     const order = readPhaseOrder(work);
     const baseline = loadArtifactDocs(work, "artifacts-baseline", feat, order);
     const resumed = loadArtifactDocs(work, "artifacts", feat, order);
     if (!baseline || !resumed)
-      return { ok: false, msg: `2-run 산출 필요 — baseline(.harness/artifacts-baseline/) ${baseline ? "있음" : "없음"} · resumed(.harness/artifacts/) ${resumed ? "있음" : "없음"}. 세션이 무중단·재개 두 산출을 떠야(라이브 수집).` };
+      return { ok: false, msg: `2-run 산출 필요 — baseline(.harness/<하네스>/artifacts-baseline/) ${baseline ? "있음" : "없음"} · resumed(.harness/<하네스>/artifacts/) ${resumed ? "있음" : "없음"}. 세션이 무중단·재개 두 산출을 떠야(라이브 수집).` };
     return judgeResumeEquivalent(baseline, resumed);
   },
 
   source_edits_preserved(work) {
-    // build-skills 는 Project(.harness) 저작물을 읽기만 한다 — 재생성 후에도 config·intent·phases 가 그대로(수기편집 보존).
-    const d = git(work, "diff", "--name-only", "--", ".harness/config.yaml", ".harness/intent.md", ".harness/project").stdout.trim();
+    // build-skills 는 Project(.harness/<하네스>/) 저작물을 읽기만 한다 — 재생성 후에도 config·intent·phases 가 그대로(수기편집 보존).
+    const name = activeHarness(work);
+    if (!name) return { ok: false, msg: "활성 하네스 없음 (.harness-main/HARNESS_MAIN 미설정)" };
+    const base = `.harness/${name}`;
+    const d = git(work, "diff", "--name-only", "--", `${base}/config.yaml`, `${base}/intent.md`, `${base}/project`).stdout.trim();
     return d
       ? { ok: false, msg: `재생성이 Project 저작물을 바꿈(수기편집 유실 위험):\n      ${d.split("\n").join("\n      ")}` }
       : { ok: true, msg: "Project 저작물(config·intent·phases) 무변 — build-skills 가 안 건드림" };
@@ -218,7 +243,10 @@ const JUDGES = {
     const projects = arr(kase.projects);
     if (projects.length < 2) return { ok: false, msg: "case.md 에 projects:[A,B] (≥2) 미정의" };
     // 1) 복사 0: 프로젝트가 phase 소스를 직접 들면 안 된다(가리켜 재사용 ≠ 복사).
-    const copiers = projects.filter((p) => existsSync(join(work, "projects", p, ".harness", "project", "phases")));
+    const copiers = projects.filter((p) => {
+      const hd = harnessDir(join(work, "projects", p));
+      return hd && existsSync(join(hd, "project", "phases"));
+    });
     if (copiers.length) return { ok: false, msg: `프로젝트가 phase 를 *복사*해 듦(가리켜 재사용 아님): ${copiers.join(", ")}` };
     // 2) 단일소스: 공유 Core 묶음의 phase-소스 디렉터리가 정확히 하나여야(복붙된 묶음이 아님).
     const bundleDirs = findAgentoppaPhaseDirs(work);
@@ -227,7 +255,9 @@ const JUDGES = {
     // 3) 각 프로젝트 config 가 agent-engineer validator green 인가(공유 묶음 소스를 가리켜 검사).
     const reds = [];
     for (const p of projects) {
-      const r = runAgentEngineer(join(work, "projects", p, ".harness", "config.yaml"));
+      const hd = harnessDir(join(work, "projects", p));
+      if (!hd) { reds.push(`${p}(활성 하네스 없음)`); continue; }
+      const r = runAgentEngineer(join(hd, "config.yaml"));
       if (r.status !== 0) reds.push(`${p}(exit ${r.status})`);
     }
     return reds.length
@@ -239,8 +269,9 @@ const JUDGES = {
     // 음성 증명: 능력-빈자리를 안 채운 프로젝트는 validator 가 error(exit≠0) 로 막아야 한다.
     const p = kase.unbound;
     if (!p) return { ok: false, msg: "case.md 에 unbound: <프로젝트> 미정의" };
-    const cfg = join(work, "projects", p, ".harness", "config.yaml");
-    if (!existsSync(cfg)) return { ok: false, msg: `음성 프로젝트 config 없음: ${rel(cfg)}` };
+    const hd = harnessDir(join(work, "projects", p));
+    const cfg = hd && join(hd, "config.yaml");
+    if (!cfg || !existsSync(cfg)) return { ok: false, msg: `음성 프로젝트 config 없음 (활성 하네스 미설정?): ${p}` };
     const r = runAgentEngineer(cfg);
     return r.status !== 0
       ? { ok: true, msg: `미바인딩 게이트 작동 — '${p}' validator error(exit ${r.status})` }
@@ -275,15 +306,17 @@ function parseGitJson(work, path) {
 }
 // config.yaml 의 feature 스칼라(있으면).
 function readConfigFeature(work) {
-  const cfg = join(work, ".harness", "config.yaml");
-  if (!existsSync(cfg)) return null;
+  const hd = harnessDir(work);
+  const cfg = hd && join(hd, "config.yaml");
+  if (!cfg || !existsSync(cfg)) return null;
   const m = readFileSync(cfg, "utf8").match(/^feature:\s*(.+)$/m);
   return m ? m[1].replace(/\s*#.*$/, "").trim().replace(/^["']|["']$/g, "") : null;
 }
 // config.yaml 의 phases: 리스트에서 phase 이름 순서를 뽑는다 (간이 — '- name' / '- {name: x}').
 function readPhaseOrder(work) {
-  const cfg = join(work, ".harness", "config.yaml");
-  if (!existsSync(cfg)) return [];
+  const hd = harnessDir(work);
+  const cfg = hd && join(hd, "config.yaml");
+  if (!cfg || !existsSync(cfg)) return [];
   const lines = readFileSync(cfg, "utf8").split(/\r?\n/);
   const order = []; let inPhases = false;
   for (const l of lines) {
@@ -300,7 +333,9 @@ function readPhaseOrder(work) {
 // artifacts 하위(<sub>/<feat 또는 첫 디렉터리>/) 의 단계 문서들을 인계순서로 [{role,hasHeader,header}] 로 읽는다.
 //   (resume_equivalent 의 두 세트 로딩 공용. order 있으면 phase 순서로, 없으면 파일명 정렬.)
 function loadArtifactDocs(work, sub, feat, order) {
-  const root = join(work, ".harness", sub);
+  const hd = harnessDir(work);
+  if (!hd) return null;
+  const root = join(hd, sub);
   if (!existsSync(root)) return null;
   let fdir = feat ? join(root, feat) : null;
   if (!fdir || !existsSync(fdir)) {

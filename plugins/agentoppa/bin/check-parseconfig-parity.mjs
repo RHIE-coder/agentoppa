@@ -2,7 +2,7 @@
 // parseConfig 동치 검사기 — build-skills.mjs 와 agent-engineer/scripts/validate.mjs 의 parseConfig 가
 //   같은 config 입력에 같은 결과를 내는지(동작 동치) 자동 확인. 둘은 한 config 양식을 각각 빌드·검증에서
 //   따로 파싱하므로, 해석이 갈리면 "빌드는 통과인데 검증은 실패"(또는 반대)가 난다 → 그 drift 를 기계로 막는다.
-//   왜 코드를 안 합치고 동작만 비교하나: validate.mjs 는 copyFileSync 로 유저 .harness/core/ 에 통째 복사되는
+//   왜 코드를 안 합치고 동작만 비교하나: validate.mjs 는 copyFileSync 로 유저 .harness/<하네스>/core/ 에 통째 복사되는
 //     자기완결 파일 → 공통 모듈 import(단일소스화)는 배포를 깬다. 그래서 합치는 대신 *동작이 같은지*를 검사한다.
 //   방법: 각 파일을 PARSECONFIG_DUMP=<config> 로 자식 실행하면 parseConfig 결과 JSON 만 찍고 종료(파일 안의 덤프 훅).
 //     갈릴 만한 변형 샘플(스칼라·values·bindings·impl·loop·인라인주석·따옴표속#)마다 두 출력이 deep-equal 인지 본다.

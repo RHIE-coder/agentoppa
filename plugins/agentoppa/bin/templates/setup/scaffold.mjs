@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scaffold — 이 Core 를 소비하는 프로젝트의 .harness/config.yaml 을 깔거나, 빠진 빈자리를 알려준다.
+// scaffold — 이 Core 를 소비하는 프로젝트의 .harness/<core>/config.yaml 을 깔거나, 빠진 빈자리를 알려준다.
 //   [AgentOppa build-skills 가 빌드 때 모든 Core 에 주입 — 프레임워크 제공, 도메인 무관]
 //   AgentOppa 없이, 설치된 이 플러그인만으로 동작한다. interface.json(이 Core 가 선언한 빈자리)을 읽어 골격을 쓴다.
 //   빈자리 두 종류 다 이 프로젝트가 채운다 — 값(values: 명령·경로 리터럴)과 능력(bindings: 구현).
@@ -18,8 +18,31 @@ if (!existsSync(ifacePath)) {
 const iface = JSON.parse(readFileSync(ifacePath, "utf8"));
 
 const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();   // 소비 프로젝트 루트
-const harnessDir = join(root, ".harness");
+const NS = ".harness/" + iface.core;                            // 단일 활성 하네스: 이 Core 의 프로젝트 층 = .harness/<core>/
+const harnessDir = join(root, ".harness", iface.core);
 const cfgPath = join(harnessDir, "config.yaml");
+const selPath = join(root, ".harness-main");                    // 활성 하네스 선택기(루트, gitignore 대상)
+
+// .harness-main(선택기) 관리 — 이 하네스를 활성으로. 이미 다른 하네스가 활성이면 덮지 않고 알려 준다.
+//   selector 가 비어 있을 때만 이 하네스로 채운다(공존하는 다른 하네스를 조용히 뺏지 않는다).
+function ensureActiveSelector() {
+  const cur = existsSync(selPath)
+    ? readFileSync(selPath, "utf8").split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"))
+    : null;
+  if (!cur) {
+    writeFileSync(selPath, iface.core + "\n");
+    console.log("✓ 활성 하네스로 지정: " + iface.core + " (.harness-main). 다른 하네스로 바꾸려면 이 파일이나 HARNESS_MAIN 을 고쳐라.");
+  } else if (cur !== iface.core) {
+    console.log("⚠ 다른 하네스('" + cur + "')가 이미 활성이다 — 이 하네스를 쓰려면 .harness-main 을 '" + iface.core + "' 로 바꾸거나 HARNESS_MAIN=" + iface.core + " 로 실행하라(덮어쓰지 않음).");
+  }
+  // .harness-main 은 gitignore 대상 — 프로젝트 .gitignore 에 없으면 한 줄 추가(멱등).
+  const giPath = join(root, ".gitignore");
+  const gi = existsSync(giPath) ? readFileSync(giPath, "utf8") : "";
+  if (!gi.split(/\r?\n/).some((l) => l.trim() === ".harness-main")) {
+    writeFileSync(giPath, gi + (gi && !gi.endsWith("\n") ? "\n" : "") + ".harness-main\n");
+    console.log("✓ .gitignore 에 .harness-main 추가(활성 하네스 선택기는 커밋하지 않는다).");
+  }
+}
 
 const caps = iface.capabilities || [];
 const vals = iface.values || [];
@@ -54,7 +77,8 @@ function skeleton() {
 if (!existsSync(cfgPath)) {
   if (!existsSync(harnessDir)) mkdirSync(harnessDir, { recursive: true });
   writeFileSync(cfgPath, skeleton());
-  console.log("✓ 만듦: .harness/config.yaml (골격) — core: " + iface.core);
+  ensureActiveSelector();
+  console.log("✓ 만듦: " + NS + "/config.yaml (골격) — core: " + iface.core);
   if (vals.length) {
     console.log("채워야 할 값 빈자리(values) " + vals.length + "개:");
     for (const v of vals) console.log("  - " + v.key + (v.optional ? " (선택)" : "") + "  ← 이 프로젝트의 값(명령·경로)을 적어라");
@@ -93,7 +117,8 @@ const filledCaps = filledKeys("bindings");
 const missingVals = vals.filter((v) => !v.optional && !filledVals.has(v.key));
 const missingCaps = caps.filter((cp) => !cp.optional && !filledCaps.has(cp.key));
 if (missingVals.length || missingCaps.length) {
-  console.log(".harness/config.yaml 있음 — 아직 안 채워진 빈자리:");
+  ensureActiveSelector();
+  console.log(NS + "/config.yaml 있음 — 아직 안 채워진 빈자리:");
   if (missingVals.length) {
     console.log("안 채워진 값 빈자리(values) " + missingVals.length + "개:");
     for (const v of missingVals) console.log("  - " + v.key + "  ← values 에 이 프로젝트의 값을 적어라");
@@ -104,5 +129,6 @@ if (missingVals.length || missingCaps.length) {
   }
   process.exit(0);
 }
-console.log("✓ .harness/config.yaml 의 값·능력 빈자리가 모두 채워져 있다 — 그대로 쓰면 된다.");
+ensureActiveSelector();
+console.log("✓ " + NS + "/config.yaml 의 값·능력 빈자리가 모두 채워져 있다 — 그대로 쓰면 된다.");
 process.exit(0);

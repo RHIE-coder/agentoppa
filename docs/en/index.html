@@ -363,7 +363,7 @@ codex plugin add <span class="s">agentoppa@agentoppa</span></pre>
         <div class="lf-arrow">→<small>built by<br>setup</small></div>
         <div class="lf">
           <div class="lf-tag">Project Layer</div>
-          <div class="lf-name">.harness/</div>
+          <div class="lf-name">.harness/&lt;harness&gt;/</div>
           <div class="lf-d"><b>Per-project config.</b> The Core <b>auto-generates</b> it per project (you don't hand-write it).</div>
         </div>
       </div>
@@ -401,13 +401,13 @@ codex plugin add <span class="s">agentoppa@agentoppa</span></pre>
 ├── .claude-plugin/ .agents/   <span class="c"># both-tool marketplaces</span>
 └── plugins/<span class="d">my-harness-workflow</span>/
     ├── skills/{spec,tdd,review}/  <span class="c"># workflow phases</span>
-    ├── skills/setup/          <span class="c"># auto-creates .harness</span>
+    ├── skills/setup/          <span class="c"># auto-creates .harness/&lt;harness&gt;</span>
     ├── interface.json         <span class="c"># slot spec</span>
     └── always-on.md</pre>
           </div>
           <div class="tree-box">
-            <div class="th">.harness/ <span class="sub">(Project Layer · this project)</span></div>
-<pre><span class="d">.harness/</span>
+            <div class="th">.harness/&lt;harness&gt;/ <span class="sub">(Project Layer · this project)</span></div>
+<pre><span class="d">.harness/my-harness-workflow/</span>
 ├── config.yaml        <span class="c"># config (required). setup lays it down, you fill slots</span>
 ├── <span class="d">project/</span>           <span class="c"># your impl (fill as you like)</span>
 │   ├── impl/          <span class="c"># impl modules</span>
@@ -417,26 +417,26 @@ codex plugin add <span class="s">agentoppa@agentoppa</span></pre>
           </div>
         </div>
 
-        <p class="sub-h">So another project just <b>installs</b> and the Core builds <code>.harness</code> itself <b>(without AgentOppa)</b>.</p>
+        <p class="sub-h">So another project just <b>installs</b> and the Core builds <code>.harness/&lt;harness&gt;</code> itself <b>(without AgentOppa)</b>.</p>
         <div class="term is-anim" data-term>
           <div class="term-bar"><span class="tb-dot"></span><span class="tb-dot"></span><span class="tb-dot"></span><span class="tb-title">Project B · Claude Code (no AgentOppa)</span><button class="term-replay" type="button" hidden>↻ Replay</button></div>
           <div class="term-body">
             <div class="tl tl-user">&gt; /plugin install my-harness-workflow</div>
             <div class="tl tl-ok">✓ Installed: phase skills (spec·tdd·review) + setup</div>
             <div class="tl tl-user">&gt; Attach this harness</div>
-            <div class="tl tl-sys">🔧 setup: creating .harness (with just this plugin)</div>
-            <div class="tl tl-ok">✓ Created: .harness/config.yaml (core: my-harness-workflow)</div>
+            <div class="tl tl-sys">🔧 setup: creating .harness/my-harness-workflow (with just this plugin)</div>
+            <div class="tl tl-ok">✓ Created: .harness/my-harness-workflow/config.yaml (core: my-harness-workflow)</div>
             <div class="tl tl-q">   slot to fill: test-runner</div>
             <div class="tl tl-sys">I see playwright in the project. I'll use that.</div>
             <div class="tl tl-ok">✓ test-runner: "npx playwright test"</div>
             <div class="tl tl-done">Done. Use /spec to start. (AgentOppa never touched)</div>
           </div>
         </div>
-        <p class="diagram-desc">Many projects use one Core. The only per-project difference is the slots (<code>bindings</code>). The Core's <code>setup</code> creates <code>.harness</code> and fills it by inspecting the project. Fix the Core once and it propagates to every project pointing at it.</p>
+        <p class="diagram-desc">Many projects use one Core. The only per-project difference is the slots (<code>bindings</code>). The Core's <code>setup</code> creates <code>.harness/&lt;harness&gt;</code> and fills it by inspecting the project. Fix the Core once and it propagates to every project pointing at it.</p>
 
         <div class="flip-note">
           <span class="ic">✓</span>
-          <p><b>AgentOppa (the Maker) to build it; not needed to use it.</b> AgentOppa is the <b>compiler that builds</b> a Core. A finished Core (<code>.agentoppa</code>) is a standalone plugin, so another project just installs it and its <code>setup</code> creates <code>.harness</code> on its own.</p>
+          <p><b>AgentOppa (the Maker) to build it; not needed to use it.</b> AgentOppa is the <b>compiler that builds</b> a Core. A finished Core (<code>.agentoppa</code>) is a standalone plugin, so another project just installs it and its <code>setup</code> creates <code>.harness/&lt;harness&gt;</code> on its own.</p>
         </div>
       </div>
 

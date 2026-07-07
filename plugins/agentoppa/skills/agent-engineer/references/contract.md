@@ -13,10 +13,10 @@ phase는 산출물을 **역할(role)**로 부른다(`{spec}`). 실제 경로는 
 
 ```
 {artifacts_dir}/<작업폴더>/{role}.md
-예) .harness/artifacts/login-oauth/spec.md
+예) .harness/<하네스>/artifacts/login-oauth/spec.md
 ```
 
-- `{artifacts_dir}` = `.harness/artifacts` (고정)
+- `{artifacts_dir}` = `.harness/<하네스>/artifacts` — `<하네스>`(= 이 하네스 이름·plugin 이름)는 빌드 때 정해져 박힌다(그 하네스 자신의 정체라 재사용 원칙에 어긋나지 않음). 루트 `.harness/` 직하는 어떤 하네스도 점유하지 않는다.
 - `<작업폴더>` = `config.yaml`의 `feature` → 없으면 git 브랜치 슬러그 → 그것도 없으면 `default`. **빌드 때 박지 않는다** — 컴파일 산출 스킬엔 `<작업폴더>` 자리표시 + "실행 시 이 규칙으로 풀라"는 안내가 들어가고, 스킬이 돌 때 정한다(값·능력 빈자리와 같은 "안 박는다" 원칙). 그래야 브랜치를 바꿔도 폴더가 따라가고(resume·병렬이 공짜), 커밋된 Core 를 여러 브랜치·프로젝트가 공유해도 이식성이 산다.
 - `{role}` = phase의 `produces`/`consumes` 값
 - 한 역할 = 한 `.md`. git-committed → 어느 도구·세션에서 열어도 같은 바통(resume).
@@ -39,7 +39,7 @@ inputs: [requirements]  # 내가 먹은 역할들 (없으면 [])
 
 입력이 바뀌었는데 산출물이 안 따라간 상태 = **stale**. 헤더는 사람용(역할만), **지문 대조는 validate가** 한다 (해시는 LLM 말고 Node가 — 결정적):
 
-- `.harness/artifacts/<작업폴더>/lock.json` 에 `역할 → 지문(내용 해시)` 스냅샷.
+- `.harness/<하네스>/artifacts/<작업폴더>/lock.json` 에 `역할 → 지문(내용 해시)` 스냅샷.
 - validate가 각 역할 파일의 *현재* 지문을 lock과 비교 → 입력이 바뀐 산출물을 `stale`로 표시(연쇄 전파), 통과 시 lock 갱신.
 - 시계·mtime(= 파일 수정 시각)·git 상태 안 씀 → 크로스툴·재현 가능.
 
@@ -54,12 +54,12 @@ inputs: [requirements]  # 내가 먹은 역할들 (없으면 [])
 - [ ] 모든 비선택 `requires` 능력-빈자리가 `config.bindings`에 존재 (미바인딩 ❌ = error), 구현 키는 `config.impl`에 알맹이 존재 (인터페이스 계약 층)
 - [ ] stale 산출물 없음 (§3)
 - [ ] (`sync=strict`) `gate` 미충족(`status≠ready`)인 채 다음으로 넘어간 곳 없음
-- [ ] (프로젝트 확장) `.harness/project/impl/validate-extra.mjs` 가 있으면 정본 검사 뒤 *이어서* 실행 — 프로젝트만의 회귀 가드를 정본을 고치지 않고 더한다(재빌드에도 삶). 실패하면 정본도 실패로 합친다.
+- [ ] (프로젝트 확장) `.harness/<하네스>/project/impl/validate-extra.mjs` 가 있으면 정본 검사 뒤 *이어서* 실행 — 프로젝트만의 회귀 가드를 정본을 고치지 않고 더한다(재빌드에도 삶). 실패하면 정본도 실패로 합친다.
 
 ## 어디서 쓰나
 
 - **컴파일 시:** Maker가 §1 규칙으로 `{역할}` 슬롯을 경로로 펼친다 — 단 작업폴더는 `<작업폴더>` 자리표시로 남기고 "실행 시 config.feature→git브랜치→default 로 풀라"는 안내를 붙인다(박지 않는다). 그래서 생성 스킬은 AgentOppa 없이도 경로 규칙을 안다.
-- **검사 시:** `.harness/core/validate.mjs`가 §2·3·4를 기계로 점검. 프로젝트 고유 검사는 `.harness/project/impl/validate-extra.mjs` 에 두면 정본이 이어서 돌린다(정본은 손대지 않는다 — 재빌드가 정본을 덮어써도 프로젝트 검사는 `project/`에 남아 삶).
+- **검사 시:** `.harness/<하네스>/core/validate.mjs`가 §2·3·4를 기계로 점검. 프로젝트 고유 검사는 `.harness/<하네스>/project/impl/validate-extra.mjs` 에 두면 정본이 이어서 돌린다(정본은 손대지 않는다 — 재빌드가 정본을 덮어써도 프로젝트 검사는 `project/`에 남아 삶).
 - 규칙의 **정본은 이 파일**(AgentOppa references). 하네스엔 `validate.mjs`가 이 규칙을 *코드로* 들고 간다(자기검사 독립).
 
 ---

@@ -53,8 +53,9 @@ AgentOppa (the Maker) **ships nothing.** You use it to build a *reusable framewo
 your-project/
 ├── .agentoppa/        ← Core layer = reusable framework (you build & own it · portable)
 │                         phase flow + gates + shared skills/hooks + slots (what varies per project)
-├── .harness/          ← Project layer = this project's implementation & bindings
+├── .harness/<harness>/ ← Project layer = this project's implementation & bindings
 │                         config.yaml (which Core + slot → implementation) + impl modules
+├── .harness-main       ← names the one active harness (gitignored; env HARNESS_MAIN overrides)
 ├── CLAUDE.md·AGENTS.md ← import the Core's rules (behavior guards survive even without the plugin)
 └── .claude/·.codex/   ← thin pointers (point at the Core to load it · not copies)
 ```
@@ -63,9 +64,9 @@ your-project/
 |---|---|---|
 | **Maker** | AgentOppa itself — the factory that *builds* harnesses | this plugin |
 | **Core** | the *reusable framework* you build. Bakes in no project values, so it travels anywhere | `.agentoppa/` |
-| **Project** | *this* project's implementation. Fills the Core's slots with this project's choices | `.harness/` |
+| **Project** | *this* project's implementation. Fills the Core's slots with this project's choices | `.harness/<harness>/` |
 
-> **The reuse trick = "don't bake values in."** A Core leaves project values (like `test runner`) as **slots** instead of hardcoding them, reading them from `.harness/` at run time. So one Core works as-is on web, mobile, or go.
+> **The reuse trick = "don't bake values in."** A Core leaves project values (like `test runner`) as **slots** instead of hardcoding them, reading them from `.harness/<harness>/` at run time. So one Core works as-is on web, mobile, or go.
 
 ---
 
@@ -173,9 +174,11 @@ The core flow: **build a Core once, and have many projects point at it.**
 Decide the reusable *phase flow* (e.g. spec → tdd → review) and the *slots* (what varies per project, e.g. the test tool). `agent-engineer` runs the interview (with `intent-interview` helping inside), then builds.
 
 ```bash
-node ./plugins/agentoppa/bin/build-skills.mjs <core-authoring-project>
-# → reads .harness/ and compiles a reusable Core into .agentoppa/
+node ./plugins/agentoppa/bin/build-skills.mjs <core-authoring-project> <harness-name>
+# → reads .harness/<harness-name>/ and compiles a reusable Core into .agentoppa/
 ```
+
+> The harness name = the folder under `.harness/` (the Core's name). Omit it and the build reads the active harness from `.harness-main` (or the `HARNESS_MAIN` env var). Several harnesses can coexist under `.harness/`, but exactly one is active at a time.
 
 ### 2. Wire it to the tools (by pointer)
 
@@ -188,7 +191,7 @@ claude --plugin-dir <project>/.agentoppa/plugins/<core>   # Claude (ad hoc)
 
 ### 3. Another project reuses it — set up automatically
 
-A new project **doesn't copy** the phases. The Core's `setup` skill lays down `.harness/config.yaml` *by itself* — **without AgentOppa.**
+A new project **doesn't copy** the phases. The Core's `setup` skill lays down `.harness/<harness>/config.yaml` *by itself* — **without AgentOppa.**
 
 ```yaml
 core:     my-harness-workflow   # the Core to point at (phases: spec → tdd → review)

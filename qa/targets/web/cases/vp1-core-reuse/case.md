@@ -13,7 +13,7 @@ tools: [claude, codex]
 **검증(모델의 핵심 주장):** 재사용 Core 묶음 *하나*(워크플로우 = `spec → e2e`, `.agentoppa/plugins/demo-core/`)를 두 프로젝트가 `core: demo-core` 로 **가리켜** 쓴다. 각자 `config.yaml` 의 값·바인딩만 다르고 **phase 사본은 안 든다**(복사 0). **"복사 말고 가리켜 재사용 = 워크플로우 한 벌, 구현만 다름"** 을 기계로 떨어뜨린다.
 - 프로젝트 A(`web-playwright`): `test_command="npm test"` · `e2e-runner→playwright`.
 - 프로젝트 B(`api-node`): `test_command="node --test"` · `e2e-runner→node-driver`.
-- 둘 다 `.harness/project/phases/` 가 **없다** — phase 정의는 공유 Core 묶음 `phases/{spec,e2e}.md` *한 벌*에만 산다.
+- 둘 다 `.harness/<하네스>/project/phases/` 가 **없다** — phase 정의는 공유 Core 묶음 `phases/{spec,e2e}.md` *한 벌*에만 산다.
 
 **fail:** 어느 프로젝트가 phase 를 복사해 듦(가리키기 아님) / Core phase 소스가 두 곳 이상(단일소스 깨짐) / 한쪽이라도 agent-engineer validator red / 미바인딩(`unbound`)이 green 으로 샘.
 

@@ -13,6 +13,6 @@ tools: [claude]
 **판정:** `contract`=기계 · `resume_equivalent`=기계(중단본 vs 무중단본의 역할 집합·인계 순서·유효 헤더 구조 동등 — `checks/lib/resume.mjs`, red/green 검증). 라이브 2-run *수집*(두 산출 뜨기)만 세션이 몲.
 
 ## 절차
-1. `setup` → 2. 무중단 1회 완주(기준본을 `.harness/artifacts-baseline/` 로) → 3. generate → 4. run 도중 프로세스 종료 → 5. 재시작(이어서 → `.harness/artifacts/`) → 6. `judge`(두 산출이 구조 동등한지 = resume_equivalent).
+1. `setup` → 2. 무중단 1회 완주(기준본을 `.harness/<하네스>/artifacts-baseline/` 로) → 3. generate → 4. run 도중 프로세스 종료 → 5. 재시작(이어서 → `.harness/<하네스>/artifacts/`) → 6. `judge`(두 산출이 구조 동등한지 = resume_equivalent).
 
 > QA 시드가 "임의의 커밋된-문서 체크포인트"인 것과 같은 메커니즘 — 이 케이스가 그 베팅의 직접 시험.

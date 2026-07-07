@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// agent-engineer validator — .harness/config.yaml(Config) + project/phases/ 를 계약(contract §4)으로 점검.
-// 사용법: node validate.mjs [path/to/.harness/config.yaml]   (기본: .harness/config.yaml)
+// agent-engineer validator — .harness/<하네스>/config.yaml(Config) + project/phases/ 를 계약(contract §4)으로 점검.
+// 사용법: node validate.mjs [path/to/.harness/<하네스>/config.yaml]
+//   (인자 없으면: emit 사본이면 자기 옆 config, 아니면 .harness-main/HARNESS_MAIN 으로 활성 하네스 config 를 찾는다.)
 // 종료코드: 오류 0건이면 0, 있으면 1, config 없으면 2.
 // 셸·외부 의존 없음(Node 빌트인만) → mac·linux·windows 동일.
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, basename } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 
@@ -30,12 +32,37 @@ function stripComment(s) {
 const clean = (s) => stripComment(s).trim().replace(/^["']|["']$/g, "");
 const splitList = (s) => stripComment(s).replace(/^\[|\]$/g, "").split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// 활성 하네스 = HARNESS_MAIN(env) → <root>/.harness-main(첫 비주석·비어있지 않은 줄) → null. (selector 로만 판단.)
+function activeHarness(root) {
+  if (process.env.HARNESS_MAIN && process.env.HARNESS_MAIN.trim()) return process.env.HARNESS_MAIN.trim();
+  const sel = join(root, ".harness-main");
+  if (existsSync(sel)) {
+    const name = readFileSync(sel, "utf8").split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+    if (name) return name;
+  }
+  return null;
+}
+// config 경로(인자 없을 때): 이 파일이 emit 사본(.harness/<이름>/core/validate.mjs)이면 자기 옆 config 를 집고,
+//   아니면 cwd 의 활성 하네스(.harness-main/HARNESS_MAIN) config 를 집는다. 둘 다 없으면 null(사용법 안내).
+function resolveDefaultConfig() {
+  if (basename(__dirname) === "core") return resolve(__dirname, "..", "config.yaml");
+  const name = activeHarness(process.cwd());
+  if (name) return join(process.cwd(), ".harness", name, "config.yaml");
+  return null;
+}
+
 const DUMP_CFG = process.env.PARSECONFIG_DUMP || null; // 동치 검사용: parseConfig 결과만 덤프하고 종료(아래 훅)
-const cfgPath = process.argv[2] ?? ".harness/config.yaml";
+const cfgPath = process.argv[2] ?? resolveDefaultConfig();
 let harnessDir = null, raw = null;
 if (!DUMP_CFG) {
+  if (!cfgPath) {
+    console.log("사용법: node validate.mjs [.harness/<하네스>/config.yaml] — 인자가 없으면 .harness-main(또는 HARNESS_MAIN)으로 활성 하네스를 찾는다.");
+    err("활성 하네스 설정 없음 (선택기 없음)"); process.exit(2);
+  }
   console.log(`agent-engineer validate → ${cfgPath}`);
-  if (!existsSync(cfgPath)) { err("config.yaml 없음"); process.exit(2); }
+  if (!existsSync(cfgPath)) { err(`활성 하네스 설정 없음: ${cfgPath}`); process.exit(2); }
   harnessDir = dirname(cfgPath);
   raw = readFileSync(cfgPath, "utf8");
 }
@@ -127,10 +154,10 @@ function parseRequire(token) {
   return { key, optional, kind };
 }
 // phase 소스 위치 해석 (`core:` 적재 배선 — build-skills.mjs 의 phaseSourceFile 과 *동치*여야 한다).
-//   - `core:` 없으면(단독 하네스): .harness/project/phases/<name>.md 만.
+//   - `core:` 없으면(단독 하네스): .harness/<하네스>/project/phases/<name>.md 만.
 //   - `core: <name>` 있으면(재사용 모드): 1) project/phases/<name>.md(있으면 오버라이드 우선) →
 //       2) <root 에서 위로 탐색>/.agentoppa/plugins/<core>/phases/<name>.md(Core 묶음이 든 phase 소스).
-//   root = dirname(harnessDir) (build-skills 의 ROOT 와 동치 — harnessDir=<root>/.harness).
+//   root = resolve(harnessDir, "..", "..") (build-skills 의 ROOT 와 동치 — harnessDir=<root>/.harness/<하네스>).
 //   위로 탐색하는 이유: 한 Core 묶음을 여러 프로젝트가 공유(가리켜 재사용)하면 공통 상위에 한 벌 → 단일소스.
 function kebab(s) { return String(s).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""); }
 function findCorePhasesDir(startDir, core) {
@@ -148,7 +175,7 @@ function phaseSourceFile(name) {
   if (existsSync(local)) return local;
   const core = C && C.scalars && C.scalars.core ? kebab(C.scalars.core) : null;
   if (core) {
-    const dir = findCorePhasesDir(join(harnessDir, ".."), core); // <root> 에서 위로.
+    const dir = findCorePhasesDir(resolve(harnessDir, "..", ".."), core); // <root> 에서 위로 (harnessDir=.harness/<이름>).
     if (dir) {
       const fromCore = join(dir, `${name}.md`);
       if (existsSync(fromCore)) return fromCore;
@@ -274,7 +301,7 @@ if (errors === 0) ok("연결 OK (dangling·중복·requires 빈자리 없음)");
 //   폴더에 산출물을 적으므로, validate 도 같은 폴더를 봐야 신선도가 맞물린다.
 //   config.feature → git 브랜치 슬러그 → "default". (build-skills 는 이 폴더를 안 박는다 — 스킬 본문의 안내가 규칙을
 //   들고, validate 는 여기서 같은 규칙으로 폴더를 찾는다. 예전엔 config.feature 만 봐 미설정 시 신선도를 통째 건너뛰었다.)
-const feat = C.scalars.feature || gitBranchSlug(harnessDir ? resolve(harnessDir, "..") : ".") || "default";
+const feat = C.scalars.feature || gitBranchSlug(harnessDir ? resolve(harnessDir, "..", "..") : ".") || "default";
 {
   const fdir = join(harnessDir, "artifacts", feat);
   if (existsSync(fdir)) {
@@ -315,7 +342,7 @@ function gitBranchSlug(root) {
 
 // --- 프로젝트 고유 검사 확장점 (project/impl/validate-extra.mjs) ---
 //   정본(이 파일)은 Maker 가 재생성하는 계약검사기라 손대지 않는다. 프로젝트만의 회귀 가드는
-//   .harness/project/impl/validate-extra.mjs 에 두면 여기서 *이어서* 실행하고 결과(exit code)를 합친다
+//   .harness/<하네스>/project/impl/validate-extra.mjs 에 두면 여기서 *이어서* 실행하고 결과(exit code)를 합친다
 //   (있을 때만 — 없으면 조용히 건너뜀). project/ 는 build 가 안 덮으므로 재빌드에도 산다.
 //   훅과 같은 원칙 — "프로젝트 저작분은 1급, 기본을 덮지 않는다"를 검사에도 확장.
 //   인자 계약: 확장 스크립트는 argv[2] 로 이 cfgPath 를 받는다(harnessDir = dirname(cfgPath) 로 프로젝트를 찾음).
